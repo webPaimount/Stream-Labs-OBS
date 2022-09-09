@@ -1,7 +1,7 @@
 import { CommonPlatformFields } from './CommonPlatformFields';
 import { useGoLiveSettings } from './useGoLiveSettings';
 import { $t } from '../../../services/i18n';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TPlatform } from '../../../services/platforms';
 import { TwitchEditStreamInfo } from './platforms/TwitchEditStreamInfo';
 import { Section } from './Section';
@@ -28,23 +28,22 @@ export default function PlatformSettings() {
     getPlatformSettings,
     isUpdateMode,
   } = useGoLiveSettings().extend(settings => ({
-
     get descriptionIsRequired() {
       const fbSettings = settings.state.platforms['facebook'];
       const descriptionIsRequired = fbSettings && fbSettings.enabled && !fbSettings.useCustomFields;
       return descriptionIsRequired;
-    }
-
+    },
   }));
 
   const shouldShowSettings = !error && !isLoading;
 
-  let layoutMode: TLayoutMode;
-  if (isMultiplatformMode) {
-    layoutMode = isAdvancedMode ? 'multiplatformAdvanced' : 'multiplatformSimple';
-  } else {
-    layoutMode = 'singlePlatform';
-  }
+  const layoutMode: TLayoutMode = useMemo(() => {
+    if (isMultiplatformMode) {
+      return isAdvancedMode ? 'multiplatformAdvanced' : 'multiplatformSimple';
+    } else {
+      return 'singlePlatform';
+    }
+  }, [isMultiplatformMode]);
 
   function createPlatformBinding<T extends TPlatform>(platform: T): IPlatformComponentParams<T> {
     return {
@@ -69,6 +68,8 @@ export default function PlatformSettings() {
             <Section isSimpleMode={!isAdvancedMode} title={$t('Common Stream Settings')}>
               <CommonPlatformFields
                 descriptionIsRequired={descriptionIsRequired}
+                layoutMode={layoutMode}
+                enabledPlatforms={enabledPlatforms}
                 value={commonFields}
                 onChange={updateCommonFields}
               />

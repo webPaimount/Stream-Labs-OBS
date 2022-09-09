@@ -1,6 +1,6 @@
 import { TPlatform } from '../../../services/platforms';
 import { $t } from '../../../services/i18n';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CheckboxInput, InputComponent, TextAreaInput, TextInput } from '../../shared/inputs';
 import { assertIsDefined } from '../../../util/properties-type-guards';
 import InputWrapper from '../../shared/inputs/InputWrapper';
@@ -19,6 +19,7 @@ interface IProps {
    * if provided then change props only for the provided platform
    */
   platform?: TPlatform;
+  enabledPlatforms?: TPlatform[];
   layoutMode?: TLayoutMode;
   value: ICommonPlatformSettings;
   descriptionIsRequired?: boolean;
@@ -34,7 +35,26 @@ type TCustomFieldName = 'title' | 'description';
  */
 export const CommonPlatformFields = InputComponent((rawProps: IProps) => {
   const defaultProps = { layoutMode: 'singlePlatform' as TLayoutMode };
-  const p: IProps = { ...defaultProps, ...rawProps };
+  const p: IProps = useMemo(() => {
+    return { ...defaultProps, ...rawProps };
+  }, [defaultProps, rawProps]);
+
+  // check platforms because titles are not required for tiktok but are required for other platforms
+  const user = Services.UserService.views;
+  const titleRequired = useMemo(() => {
+    return (
+      user.auth?.primaryPlatform !== 'tiktok' ||
+      rawProps?.enabledPlatforms?.reduce(
+        (titleIsRequired, platform: string): platform is TPlatform => {
+          if (['twitch', 'facebook', 'youtube'].includes(platform)) {
+            return true;
+          }
+          return titleIsRequired;
+        },
+        false,
+      )
+    );
+  }, [user, rawProps]);
 
   function updatePlatform(patch: Partial<ICommonPlatformSettings>) {
     const platformSettings = p.value;
@@ -61,9 +81,6 @@ export const CommonPlatformFields = InputComponent((rawProps: IProps) => {
     typeof p.descriptionIsRequired === 'boolean'
       ? p.descriptionIsRequired
       : p.platform === 'facebook';
-
-  const user = Services.UserService.views;
-  const platform = user.auth?.platform?.type;
 
   const hasDescription = p.platform
     ? view.supports('description', [p.platform as TPlatform])
@@ -99,7 +116,7 @@ export const CommonPlatformFields = InputComponent((rawProps: IProps) => {
               name="title"
               onChange={val => updateCommonField('title', val)}
               label={$t('Title')}
-              required={platform && platform?.toLowerCase() !== 'tiktok' ? true : false}
+              required={titleRequired}
               max={p.platform === 'twitch' ? 140 : 120}
             />
 
