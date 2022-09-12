@@ -22,6 +22,7 @@ export default function PlatformSettings() {
     isLoading,
     updatePlatform,
     platforms,
+    customDestinations,
     commonFields,
     updateCommonFields,
     descriptionIsRequired,
@@ -36,6 +37,10 @@ export default function PlatformSettings() {
   }));
 
   const shouldShowSettings = !error && !isLoading;
+
+  const hasActiveCustomDestinations: boolean = useMemo(() => {
+    return customDestinations.some(destination => destination.enabled === true);
+  }, [customDestinations]);
 
   const layoutMode: TLayoutMode = useMemo(() => {
     if (isMultiplatformMode) {
@@ -69,6 +74,7 @@ export default function PlatformSettings() {
               <CommonPlatformFields
                 descriptionIsRequired={descriptionIsRequired}
                 layoutMode={layoutMode}
+                hasActiveCustomDestinations={hasActiveCustomDestinations}
                 enabledPlatforms={enabledPlatforms}
                 value={commonFields}
                 onChange={updateCommonFields}

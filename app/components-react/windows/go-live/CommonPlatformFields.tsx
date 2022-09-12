@@ -1,6 +1,6 @@
 import { TPlatform } from '../../../services/platforms';
 import { $t } from '../../../services/i18n';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { CheckboxInput, InputComponent, TextAreaInput, TextInput } from '../../shared/inputs';
 import { assertIsDefined } from '../../../util/properties-type-guards';
 import InputWrapper from '../../shared/inputs/InputWrapper';
@@ -19,6 +19,7 @@ interface IProps {
    * if provided then change props only for the provided platform
    */
   platform?: TPlatform;
+  hasActiveCustomDestinations?: boolean;
   enabledPlatforms?: TPlatform[];
   layoutMode?: TLayoutMode;
   value: ICommonPlatformSettings;
@@ -39,11 +40,22 @@ export const CommonPlatformFields = InputComponent((rawProps: IProps) => {
     return { ...defaultProps, ...rawProps };
   }, [defaultProps, rawProps]);
 
-  // check platforms because titles are not required for tiktok but are required for other platforms
+  /**
+   * Because tiktok does not save a title we cannot use the hook to populate the title.
+   * So we track it on state.
+   */
+  const [currentTitle, setCurrentTitle] = useState('');
+
+  /**
+   * Check platforms because titles are not required for tiktok but are required for other platforms.
+   * Require for all custom destinations because we do not know their default title requirement.
+   */
+  //
   const user = Services.UserService.views;
   const titleRequired = useMemo(() => {
     return (
       user.auth?.primaryPlatform !== 'tiktok' ||
+      rawProps.hasActiveCustomDestinations ||
       rawProps?.enabledPlatforms?.reduce(
         (titleIsRequired, platform: string): platform is TPlatform => {
           if (['twitch', 'facebook', 'youtube'].includes(platform)) {
@@ -71,6 +83,9 @@ export const CommonPlatformFields = InputComponent((rawProps: IProps) => {
   }
 
   function updateCommonField(fieldName: TCustomFieldName, value: string) {
+    if (user.auth?.primaryPlatform === 'tiktok') {
+      setCurrentTitle(value);
+    }
     updatePlatform({ [fieldName]: value });
   }
 
@@ -86,12 +101,14 @@ export const CommonPlatformFields = InputComponent((rawProps: IProps) => {
     ? view.supports('description', [p.platform as TPlatform])
     : view.supports('description');
 
-  const fields = p.value;
-
   // find out the best title for common fields
   const title = hasDescription
     ? $t('Use different title and description')
     : $t('Use different title');
+
+  const fields = useMemo(() => {
+    return p.value;
+  }, [p.value]);
 
   return (
     <div>
@@ -112,7 +129,7 @@ export const CommonPlatformFields = InputComponent((rawProps: IProps) => {
           <div>
             {/*TITLE*/}
             <TextInput
-              value={fields['title']}
+              value={user.auth?.primaryPlatform !== 'tiktok' ? fields['title'] : currentTitle}
               name="title"
               onChange={val => updateCommonField('title', val)}
               label={$t('Title')}

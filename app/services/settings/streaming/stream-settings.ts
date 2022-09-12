@@ -22,6 +22,7 @@ interface ISavedGoLiveSettings {
 }
 
 export interface ICustomStreamDestination {
+  title?: string;
   name: string;
   url: string;
   streamKey?: string;
@@ -189,7 +190,7 @@ export class StreamSettingsService extends PersistentStatefulService<IStreamSett
       );
       patch.platforms = platforms as ISavedGoLiveSettings['platforms'];
     }
-    console.log('update settings', settingsPatch);
+
     this.setSettings({
       goLiveSettings: { ...this.state.goLiveSettings, ...settingsPatch } as IGoLiveSettings,
     });
