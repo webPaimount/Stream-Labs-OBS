@@ -41,6 +41,7 @@ import { CustomizationService } from '../customization';
 import { EAvailableFeatures, IncrementalRolloutService } from '../incremental-rollout';
 import { EMonitoringType } from '../../../obs-api';
 import { GuestCamService } from 'services/guest-cam';
+import { DualOutputService } from 'services/dual-output';
 
 const AudioFlag = obs.ESourceOutputFlags.Audio;
 const VideoFlag = obs.ESourceOutputFlags.Video;
@@ -186,6 +187,7 @@ export class SourcesService extends StatefulService<ISourcesState> {
   @Inject() private customizationService: CustomizationService;
   @Inject() private incrementalRolloutService: IncrementalRolloutService;
   @Inject() private guestCamService: GuestCamService;
+  @Inject() private dualOutputService: DualOutputService;
 
   sourceDisplayData = SourceDisplayData(); // cache source display data
 
