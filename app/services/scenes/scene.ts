@@ -363,6 +363,8 @@ export class Scene {
         rotation: sceneNode.rotation || 0,
         streamVisible: sceneNode.streamVisible,
         recordingVisible: sceneNode.recordingVisible,
+        scaleFilter: sceneNode.scaleFilter,
+        blendingMode: sceneNode.blendingMode,
       });
       return true;
     });

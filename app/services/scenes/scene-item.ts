@@ -256,6 +256,8 @@ export class SceneItem extends SceneItemNode {
       locked: !!customSceneItem.locked,
       streamVisible: !!customSceneItem.streamVisible,
       recordingVisible: !!customSceneItem.recordingVisible,
+      scaleFilter: customSceneItem.scaleFilter,
+      blendingMode: customSceneItem.blendingMode,
     });
   }
 

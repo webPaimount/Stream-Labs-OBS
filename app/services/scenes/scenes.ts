@@ -43,6 +43,8 @@ export interface ISceneItemInfo {
   rotation?: number;
   streamVisible?: boolean;
   recordingVisible?: boolean;
+  scaleFilter?: obs.EScaleType;
+  blendingMode?: obs.EBlendingMode;
 }
 
 export interface IScenesState {
@@ -85,6 +87,8 @@ export interface IPartialSettings {
   locked?: boolean;
   streamVisible?: boolean;
   recordingVisible?: boolean;
+  scaleFilter?: obs.EScaleType;
+  blendingMode?: obs.EBlendingMode;
 }
 
 export interface ISceneItem extends ISceneItemSettings, ISceneItemNode {
@@ -92,6 +96,8 @@ export interface ISceneItem extends ISceneItemSettings, ISceneItemNode {
   sourceId: string;
   obsSceneItemId: number;
   sceneNodeType: 'item';
+  scaleFilter?: obs.EScaleType;
+  blendingMode?: obs.EBlendingMode;
 }
 
 export interface ISceneItemActions {

@@ -54,6 +54,9 @@ export interface ISourceInfo {
 
   propertiesManager?: TPropertiesManager;
   propertiesManagerSettings?: Dictionary<any>;
+
+  deinterlaceMode?: obs.EDeinterlaceMode;
+  deinterlaceFieldOrder?: obs.EDeinterlaceFieldOrder;
 }
 
 export class SourcesNode extends Node<ISchema, {}> {
@@ -223,6 +226,8 @@ export class SourcesNode extends Node<ISchema, {}> {
         settings: source.settings,
         volume: source.volume,
         syncOffset: source.syncOffset,
+        deinterlaceMode: source.deinterlaceMode,
+        deinterlaceFieldOrder: source.deinterlaceFieldOrder,
         filters: source.filters.items
           .filter(filter => {
             if (filter.type === 'face_mask_filter') {

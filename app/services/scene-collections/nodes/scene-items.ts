@@ -3,6 +3,7 @@ import { ISceneItemFolder, Scene, ScenesService, TSceneNodeType } from '../../sc
 import { HotkeysNode } from './hotkeys';
 import { SourcesService } from '../../sources';
 import { Inject } from '../../core/injector';
+import * as obs from '../../../../obs-api';
 
 interface ISchema {
   items: TSceneNodeInfo[];
@@ -22,6 +23,8 @@ export interface ISceneItemInfo extends ISceneNodeInfo {
   streamVisible?: boolean;
   recordingVisible?: boolean;
   sceneNodeType: 'item';
+  scaleFilter?: obs.EScaleType;
+  blendingMode?: obs.EBlendingMode;
 }
 
 interface ISceneItemFolderInfo extends ISceneNodeInfo {

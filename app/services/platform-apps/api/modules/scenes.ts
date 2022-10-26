@@ -9,6 +9,7 @@ import {
 import { Scene, ScenesService, TSceneNode } from 'services/scenes';
 import { Inject } from 'services/core/injector';
 import { Subject } from 'rxjs';
+import * as obs from '../../../../../obs-api';
 
 enum ESceneNodeType {
   Folder = 'folder',
@@ -35,6 +36,8 @@ interface ISceneItem extends INode {
   transform: ITransform;
   streamVisible: boolean;
   recordingVisible: boolean;
+  scaleFilter?: obs.EScaleType;
+  blendingMode?: obs.EBlendingMode;
 }
 
 interface ISceneItemFolder extends INode {
