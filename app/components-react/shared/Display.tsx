@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useEffect, useRef } from 'react';
 import { useVuex } from '../hooks';
 import { Services } from '../service-provider';
-import { Display as OBSDisplay } from '../../services/video';
+import { Display as OBSDisplay, TDisplayType } from '../../services/video';
 import uuid from 'uuid/v4';
 
 // @@REFERENCE
@@ -14,6 +14,8 @@ interface DisplayProps {
   onOutputResize?: (region: IRectangle) => void;
   clickHandler?: (event: React.MouseEvent) => void;
   style?: React.CSSProperties;
+  type?: TDisplayType;
+  paddingColor?: any; // @@@ temp
 }
 
 export default function Display(props: DisplayProps) {
@@ -40,9 +42,6 @@ export default function Display(props: DisplayProps) {
 
   useEffect(updateDisplay, [p.sourceId, v.paddingColor]);
   useEffect(refreshOutputRegion, [v.baseResolution]);
-  // why not useLayoutEffect?
-  // useLayoutEffect(updateDisplay, [p.sourceId, v.paddingColor]);
-  // useLayoutEffect(refreshOutputRegion, [v.baseResolution]);
 
   function refreshOutputRegion() {
     if (!obsDisplay.current) return;
@@ -58,8 +57,10 @@ export default function Display(props: DisplayProps) {
     obsDisplay.current = new OBSDisplay(displayId, {
       sourceId: p.sourceId,
       paddingSize: p.paddingSize,
-      paddingColor: v.paddingColor,
+      paddingColor: p.paddingColor, // @@@ temp
+      // paddingColor: v.paddingColor,
       renderingMode: p.renderingMode,
+      type: p.type as TDisplayType,
     });
     obsDisplay.current.setShoulddrawUI(p.drawUI);
     obsDisplay.current.onOutputResize(region => p.onOutputResize(region));
@@ -72,7 +73,6 @@ export default function Display(props: DisplayProps) {
   }
 
   function updateDisplay() {
-    // why destroying and creating every time?
     destroyDisplay();
     createDisplay();
 

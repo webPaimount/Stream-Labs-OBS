@@ -1,4 +1,5 @@
 import { Service } from './core/service';
+import { StatefulService, InitAfter, mutation } from 'services/core';
 import { SettingsService } from './settings';
 import * as obs from '../../obs-api';
 import { Inject } from './core/injector';
@@ -10,6 +11,7 @@ import { SelectionService } from 'services/selection';
 import { byOS, OS, getOS } from 'util/operating-systems';
 import * as remote from '@electron/remote';
 import { onUnload } from 'util/unload';
+import { ScenesService } from './api/external-api/resources';
 
 // TODO: There are no typings for nwr
 let nwr: any;
@@ -28,6 +30,7 @@ export interface IDisplayOptions {
   slobsWindowId?: string;
   paddingColor?: IRGBColor;
   renderingMode?: number;
+  type?: TDisplayType;
 }
 
 export class Display {
@@ -68,11 +71,12 @@ export class Display {
 
   cancelUnload: () => void;
 
-  // @@REFERENCE
-  // @@REUSE??: maybe pass something to indicate mobile display
-  // position + size and adds padding where needed
+  type?: TDisplayType;
+
+  // @@@ position + size and adds padding where needed
 
   constructor(public name: string, options: IDisplayOptions = {}) {
+    console.log('DISPLAY options ', options);
     this.sourceId = options.sourceId;
     this.electronWindowId = options.electronWindowId || remote.getCurrentWindow().id;
     this.slobsWindowId = options.slobsWindowId || Utils.getCurrentUrlParams().windowId;
@@ -83,6 +87,11 @@ export class Display {
     const electronWindow = remote.BrowserWindow.fromId(this.electronWindowId);
 
     this.currentScale = this.windowsService.state[this.slobsWindowId].scaleFactor;
+
+    this.type = options.type ?? 'default';
+    this.videoService.actions.setType(options.type);
+
+    this.videoService.actions.updateContext(options.type);
 
     this.videoService.actions.createOBSDisplay(
       this.electronWindowId,
@@ -238,13 +247,14 @@ export class Display {
         nwr.destroyWindow(this.name);
         nwr.destroyIOSurface(this.name);
       }
-
+      // this.videoService.destroyContext(); // @@@ where/when should we destroy the context?
       this.displayDestroyed = true;
     }
   }
 
   destroy() {
     const win = remote.BrowserWindow.fromId(this.electronWindowId);
+
     if (win) {
       win.removeListener('close', this.boundClose);
     }
@@ -291,11 +301,57 @@ export class Display {
   }
 }
 
-export class VideoService extends Service {
+export type TDisplayType = 'default' | 'horizontal' | 'vertical';
+interface IVideoServiceState {
+  type?: TDisplayType;
+  horizontalContext: obs.IVideo;
+  verticalContext: obs.IVideo;
+
+  // sourceId: string | null;
+}
+@InitAfter('UserService')
+export class VideoService extends StatefulService<IVideoServiceState> {
   @Inject() settingsService: SettingsService;
+  @Inject() scenesService: ScenesService;
+
+  static initialState: IVideoServiceState = {
+    type: 'default',
+    horizontalContext: null,
+    verticalContext: null,
+    // sourceId: null,
+  };
 
   init() {
     this.settingsService.loadSettingsIntoStore();
+    this.state.horizontalContext = obs.VideoFactory.create();
+    // this.state.horizontalContext.video = {
+    //   fpsNum: 120,
+    //   fpsDen: 2,
+    //   baseWidth: 3840,
+    //   baseHeight: 2160,
+    //   outputWidth: 3840,
+    //   outputHeight: 2160,
+    //   outputFormat: obs.EVideoFormat.I420,
+    //   colorspace: obs.EColorSpace.CS709,
+    //   range: obs.ERangeType.Full,
+    //   scaleType: obs.EScaleType.Lanczos,
+    //   fpsType: obs.EFPSType.Fractional,
+    // };
+    this.state.verticalContext = obs.VideoFactory.create();
+    // this.state.verticalContext.video = {
+    //   fpsNum: 60,
+    //   fpsDen: 2,
+    //   baseWidth: 500,
+    //   baseHeight: 1000,
+    //   outputWidth: 500,
+    //   outputHeight: 1000,
+    //   outputFormat: obs.EVideoFormat.I420,
+    //   colorspace: obs.EColorSpace.CS709,
+    //   range: obs.ERangeType.Full,
+    //   scaleType: obs.EScaleType.Lanczos,
+    //   fpsType: obs.EFPSType.Fractional,
+    // };
+    // this.state.sourceId = this.scenesService.activeSceneId;
   }
 
   getScreenRectangle() {
@@ -316,10 +372,27 @@ export class VideoService extends Service {
   }
 
   get baseResolution() {
+    console.log('this.state.horizontalContext ', this.state.horizontalContext);
+    console.log('this.state.horizontalContext ', this.state.horizontalContext);
+    console.log('baseResolution this.state.type', this.state.type);
+    if (this.state.horizontalContext.hasOwnProperty('video') && this.state.type === 'horizontal') {
+      console.log('this.state.horizontalContext ', this.state.horizontalContext);
+      return {
+        width: this.state.horizontalContext.video.baseWidth,
+        height: this.state.horizontalContext.video.baseHeight,
+      };
+    }
+
+    if (this.state.verticalContext.hasOwnProperty('video') && this.state.type === 'vertical') {
+      return {
+        width: this.state.verticalContext.video.baseWidth,
+        height: this.state.verticalContext.video.baseHeight,
+      };
+    }
+
     const [widthStr, heightStr] = this.settingsService.views.values.Video.Base.split('x');
     const width = parseInt(widthStr, 10);
     const height = parseInt(heightStr, 10);
-
     return {
       width,
       height,
@@ -344,6 +417,10 @@ export class VideoService extends Service {
     sourceId?: string,
   ) {
     const electronWindow = remote.BrowserWindow.fromId(electronWindowId);
+    // this.state.type = type;
+
+    console.log('createOBSDisplay type ', this.state.type);
+    // console.log('createOBSDisplay context ', this.state.context);
 
     if (sourceId) {
       obs.NodeObs.OBS_content_createSourcePreviewDisplay(
@@ -396,6 +473,24 @@ export class VideoService extends Service {
     obs.NodeObs.OBS_content_setDrawGuideLines(name, drawGuideLines);
   }
 
+  // DUAL OUTPUT
+  setType(type: TDisplayType = 'default') {
+    this.SET_TYPE(type);
+  }
+
+  updateContext(type?: TDisplayType) {
+    this.UPDATE_CONTEXT(type);
+  }
+
+  destroyContext(type: TDisplayType) {
+    if (type === 'horizontal') {
+      this.state.horizontalContext.destroy();
+    }
+    if (type === 'vertical') {
+      this.state.verticalContext.destroy();
+    }
+  }
+
   /**
    * Creates a shared IOSurface for a display that can be passed to
    * node-window-rendering for embedded in electron. (Mac Only)
@@ -403,5 +498,45 @@ export class VideoService extends Service {
    */
   createOBSIOSurface(name: string) {
     return obs.NodeObs.OBS_content_createIOSurface(name);
+  }
+
+  @mutation()
+  private SET_TYPE(type: TDisplayType) {
+    this.state.type = type;
+  }
+
+  @mutation()
+  private UPDATE_CONTEXT(type?: TDisplayType) {
+    if (type === 'horizontal') {
+      console.log('updating ', type);
+      this.state.horizontalContext.video = {
+        fpsNum: 120,
+        fpsDen: 2,
+        baseWidth: 3840,
+        baseHeight: 2160,
+        outputWidth: 3840,
+        outputHeight: 2160,
+        outputFormat: obs.EVideoFormat.I420,
+        colorspace: obs.EColorSpace.CS709,
+        range: obs.ERangeType.Full,
+        scaleType: obs.EScaleType.Lanczos,
+        fpsType: obs.EFPSType.Fractional,
+      };
+    } else if (type === 'vertical') {
+      console.log('updating ', type);
+      this.state.verticalContext.video = {
+        fpsNum: 60,
+        fpsDen: 2,
+        baseWidth: 500,
+        baseHeight: 1000,
+        outputWidth: 500,
+        outputHeight: 1000,
+        outputFormat: obs.EVideoFormat.I420,
+        colorspace: obs.EColorSpace.CS709,
+        range: obs.ERangeType.Full,
+        scaleType: obs.EScaleType.Lanczos,
+        fpsType: obs.EFPSType.Fractional,
+      };
+    }
   }
 }

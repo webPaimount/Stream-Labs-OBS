@@ -16,6 +16,7 @@ export default function StudioEditor() {
     EditorService,
     TransitionsService,
     DualOutputService,
+    ScenesService,
   } = Services;
   const v = useVuex(() => ({
     hideStyleBlockers: WindowsService.state.main.hideStyleBlockers,
@@ -25,6 +26,7 @@ export default function StudioEditor() {
     dualOutputMode: DualOutputService.views.dualOutputMode,
     isHorizontalActive: DualOutputService.views.isHorizontalActive,
     isVerticalActive: DualOutputService.views.isVerticalActive,
+    activeSceneId: ScenesService.views.activeSceneId,
   }));
   const displayEnabled = !v.hideStyleBlockers && !v.performanceMode;
   const placeholderRef = useRef<HTMLDivElement>(null);
@@ -179,15 +181,16 @@ export default function StudioEditor() {
                 <Display
                   drawUI={true}
                   paddingSize={10}
+                  paddingColor={{ r: 0, g: 51, b: 255 }} // @@@ temp
                   onOutputResize={eventHandlers.onOutputResize}
                   renderingMode={ERenderingMode.OBS_MAIN_RENDERING}
-                  sourceId={v.studioMode ? studioModeTransitionName : undefined}
+                  sourceId={v.studioMode ? studioModeTransitionName : v.activeSceneId}
                 />
               </div>
             )}
             {!v.dualOutputMode && v.studioMode && (
               <div className={styles.studioModeDisplayContainer}>
-                <Display paddingSize={10} />
+                <Display paddingSize={10} paddingColor={{ r: 0, g: 255, b: 0 }} />
               </div>
             )}
             {v.dualOutputMode && v.isHorizontalActive && (
@@ -201,13 +204,14 @@ export default function StudioEditor() {
                 onDoubleClick={eventHandlers.onMouseDblClick}
                 onContextMenu={eventHandlers.onContextMenu}
               >
-                <DualOutputDisplay
+                <Display
                   type="horizontal"
                   drawUI={true}
                   paddingSize={10}
+                  paddingColor={{ r: 255, g: 0, b: 0 }} // @@@ temp
                   onOutputResize={eventHandlers.onOutputResize}
                   renderingMode={ERenderingMode.OBS_MAIN_RENDERING}
-                  sourceId={v.studioMode ? studioModeTransitionName : undefined}
+                  sourceId={v.studioMode ? studioModeTransitionName : v.activeSceneId}
                 />
               </div>
             )}
@@ -222,13 +226,14 @@ export default function StudioEditor() {
                 onDoubleClick={eventHandlers.onMouseDblClick}
                 onContextMenu={eventHandlers.onContextMenu}
               >
-                <DualOutputDisplay
+                <Display
                   type="vertical"
                   drawUI={true}
                   paddingSize={10}
+                  paddingColor={{ r: 255, g: 238, b: 0 }} // @@@ temp
                   onOutputResize={eventHandlers.onOutputResize}
                   renderingMode={ERenderingMode.OBS_MAIN_RENDERING}
-                  sourceId={v.studioMode ? studioModeTransitionName : undefined}
+                  sourceId={v.studioMode ? studioModeTransitionName : v.activeSceneId}
                 />
               </div>
             )}
