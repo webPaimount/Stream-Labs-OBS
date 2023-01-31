@@ -28,6 +28,7 @@ import {
   INotification,
   NotificationsService,
 } from 'services/notifications';
+import { OutputsService } from 'app-services';
 import { VideoEncodingOptimizationService } from 'services/video-encoding-optimizations';
 import { CustomizationService } from 'services/customization';
 import { StreamSettingsService } from '../settings/streaming';
@@ -44,6 +45,7 @@ import { StreamInfoView } from './streaming-view';
 import { GrowService } from 'services/grow/grow';
 import * as remote from '@electron/remote';
 import { RecordingModeService } from 'services/recording-mode';
+import { EOutputSignal } from '../../../obs-api';
 
 enum EOBSOutputType {
   Streaming = 'streaming',
@@ -62,13 +64,6 @@ enum EOBSOutputSignal {
   WriteError = 'writing_error',
 }
 
-interface IOBSOutputSignalInfo {
-  type: EOBSOutputType;
-  signal: EOBSOutputSignal;
-  code: obs.EOutputCode;
-  error: string;
-}
-
 export class StreamingService
   extends StatefulService<IStreamingServiceState>
   implements IStreamingServiceApi {
@@ -84,6 +79,7 @@ export class StreamingService
   @Inject() private twitterService: TwitterService;
   @Inject() private growService: GrowService;
   @Inject() private recordingModeService: RecordingModeService;
+  @Inject() private outputsService: OutputsService;
 
   streamingStatusChange = new Subject<EStreamingState>();
   recordingStatusChange = new Subject<ERecordingState>();
@@ -127,10 +123,6 @@ export class StreamingService
   };
 
   init() {
-    obs.NodeObs.OBS_service_connectOutputSignals((info: IOBSOutputSignalInfo) => {
-      this.handleOBSOutputSignal(info);
-    });
-
     // watch for StreamInfoView at emit `streamInfoChanged` event if something has been hanged there
     this.store.watch(
       () => {
@@ -611,7 +603,7 @@ export class StreamingService
 
     this.powerSaveId = remote.powerSaveBlocker.start('prevent-display-sleep');
 
-    obs.NodeObs.OBS_service_startStreaming();
+    this.outputsService.startOutput('stream');
 
     const recordWhenStreaming = this.streamSettingsService.settings.recordWhenStreaming;
 
@@ -682,7 +674,7 @@ export class StreamingService
         remote.powerSaveBlocker.stop(this.powerSaveId);
       }
 
-      obs.NodeObs.OBS_service_stopStreaming(false);
+      this.outputsService.endOutput('stream', false);
 
       const keepRecording = this.streamSettingsService.settings.keepRecordingWhenStreamStops;
       if (!keepRecording && this.state.recordingStatus === ERecordingState.Recording) {
@@ -704,7 +696,7 @@ export class StreamingService
     }
 
     if (this.state.streamingStatus === EStreamingState.Ending) {
-      obs.NodeObs.OBS_service_stopStreaming(true);
+      this.outputsService.outputs.stream.stop(true);
       return Promise.resolve();
     }
   }
@@ -725,33 +717,33 @@ export class StreamingService
 
   toggleRecording() {
     if (this.state.recordingStatus === ERecordingState.Recording) {
-      obs.NodeObs.OBS_service_stopRecording();
+      this.outputsService.endOutput('recording');
       return;
     }
 
     if (this.state.recordingStatus === ERecordingState.Offline) {
-      obs.NodeObs.OBS_service_startRecording();
+      this.outputsService.startOutput('recording');
       return;
     }
   }
 
   splitFile() {
     if (this.state.recordingStatus === ERecordingState.Recording) {
-      obs.NodeObs.OBS_service_splitFile();
+      this.outputsService.outputs.recording.splitFile();
     }
   }
 
   startReplayBuffer() {
     if (this.state.replayBufferStatus !== EReplayBufferState.Offline) return;
     this.usageStatisticsService.recordFeatureUsage('ReplayBuffer');
-    obs.NodeObs.OBS_service_startReplayBuffer();
+    this.outputsService.startOutput('replay');
   }
 
   stopReplayBuffer() {
     if (this.state.replayBufferStatus === EReplayBufferState.Running) {
-      obs.NodeObs.OBS_service_stopReplayBuffer(false);
+      this.outputsService.endOutput('replay', false);
     } else if (this.state.replayBufferStatus === EReplayBufferState.Stopping) {
-      obs.NodeObs.OBS_service_stopReplayBuffer(true);
+      this.outputsService.endOutput('replay', true);
     }
   }
 
@@ -759,7 +751,7 @@ export class StreamingService
     if (this.state.replayBufferStatus === EReplayBufferState.Running) {
       this.SET_REPLAY_BUFFER_STATUS(EReplayBufferState.Saving);
       this.replayBufferStatusChange.next(EReplayBufferState.Saving);
-      obs.NodeObs.OBS_service_processReplayBufferHotkey();
+      this.outputsService.outputs.replay.save();
     }
   }
 
@@ -886,7 +878,7 @@ export class StreamingService
 
   private outputErrorOpen = false;
 
-  private handleOBSOutputSignal(info: IOBSOutputSignalInfo) {
+  handleOBSOutputSignal(info: obs.EOutputSignal) {
     console.debug('OBS Output signal: ', info);
 
     const time = new Date().toISOString();
@@ -1003,7 +995,7 @@ export class StreamingService
           status: 'wrote',
           code: info.code,
         });
-        this.replayBufferFileWrite.next(obs.NodeObs.OBS_service_getLastReplay());
+        this.replayBufferFileWrite.next(this.outputsService.outputs.replay.lastFile());
       }
     }
 

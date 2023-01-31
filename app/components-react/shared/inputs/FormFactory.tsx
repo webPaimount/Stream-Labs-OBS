@@ -19,6 +19,7 @@ const componentTable: {
   list: inputs.ListInput,
   switch: inputs.SwitchInput,
   autocomplete: inputs.AutocompleteInput,
+  toggle: inputs.SwitchInput,
 };
 
 interface IFormMetadata {
@@ -27,13 +28,15 @@ interface IFormMetadata {
 
 export default function FormFactory(p: {
   metadata: IFormMetadata;
-  onChange: (key: string) => (value: TInputValue) => void;
+  onChange?: (key: string) => (value: TInputValue) => void;
   values: Dictionary<TInputValue>;
   formOptions?: FormProps;
 }) {
   const form = useForm();
 
   useMemo(() => form.setFieldsValue(cloneDeep(p.values)), []);
+
+  const onChange = p.onChange || (() => () => {});
 
   return (
     <Form
@@ -47,7 +50,7 @@ export default function FormFactory(p: {
           id={inputKey}
           metadata={p.metadata[inputKey]}
           values={p.values}
-          onChange={p.onChange}
+          onChange={onChange}
         />
       ))}
     </Form>

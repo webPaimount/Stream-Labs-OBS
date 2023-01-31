@@ -59,6 +59,9 @@ export { RecordingModeService } from 'services/recording-mode';
 export { SideNavService } from 'services/side-nav';
 export { VideoSettingsService } from 'services/settings-v2/video';
 export { SettingsManagerService } from 'services/settings-manager';
+export { AdvancedSettingsService } from 'services/settings-v2/advanced';
+export { OutputsService } from 'services/settings-v2/output';
+export { AudioSettingsService } from 'services/settings-v2/audio';
 
 // ONLINE SERVICES
 export { UserService } from './services/user';
@@ -183,6 +186,9 @@ import { GuestCamService } from 'services/guest-cam';
 import { SideNavService } from './services/side-nav';
 import { VideoSettingsService } from 'services/settings-v2/video';
 import { SettingsManagerService } from 'services/settings-manager';
+import { AdvancedSettingsService } from 'services/settings-v2/advanced';
+import { OutputsService } from 'services/settings-v2/output';
+import { AudioSettingsService } from 'services/settings-v2/audio';
 
 export const AppServices = {
   AppService,
@@ -251,4 +257,7 @@ export const AppServices = {
   SideNavService,
   VideoSettingsService,
   SettingsManagerService,
+  AdvancedSettingsService,
+  OutputsService,
+  AudioSettingsService,
 };
