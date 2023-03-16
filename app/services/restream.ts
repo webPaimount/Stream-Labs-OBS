@@ -127,11 +127,6 @@ export class RestreamService extends StatefulService<IRestreamState> {
   fetchUserSettings(mode?: 'landscape' | 'portrait'): Promise<IUserSettingsResponse> {
     const headers = authorizedHeaders(this.userService.apiToken);
 
-    // const url =
-    //   mode === 'portrait'
-    //     ? 'https://beta.streamlabs.com/api/v1/rst/user/settings?mode=portrait'
-    //     : `https://${this.host}/api/v1/rst/user/settings`;
-
     let url;
     switch (mode) {
       case 'landscape': {
@@ -177,7 +172,6 @@ export class RestreamService extends StatefulService<IRestreamState> {
       this.userService.apiToken,
       new Headers({ 'Content-Type': 'application/json' }),
     );
-    // const url = 'https://beta.streamlabs.com/api/v1/rst/user/settings';
     const url = `https://${this.host}/api/v1/rst/user/settings`;
     const body = JSON.stringify({
       enabled,
@@ -185,8 +179,6 @@ export class RestreamService extends StatefulService<IRestreamState> {
       idleTimeout: 30,
     });
     const request = new Request(url, { headers, body, method: 'PUT' });
-
-    console.log('restream enabled');
 
     return jfetch(request);
   }
@@ -231,8 +223,8 @@ export class RestreamService extends StatefulService<IRestreamState> {
     // const settings = context === 1 ? await this.fetchUserSettings(mode) : this.settings;
     const settings = mode ? await this.fetchUserSettings(mode) : this.settings;
 
-    console.log('setting up for context ', context);
-    console.log('settings.streamKey ', settings.streamKey);
+    console.log('    * RESTREAM context ', context);
+    console.log('    * RESTREAM settings.streamKey ', settings.streamKey);
 
     // We need to move OBS to custom ingest mode before we can set the server
     this.streamSettingsService.setSettings(
@@ -280,8 +272,6 @@ export class RestreamService extends StatefulService<IRestreamState> {
       tikTokTarget.streamKey = `${ttSettings.serverUrl}/${ttSettings.streamKey}`;
     }
 
-    console.log('newTargets ', newTargets);
-
     await this.createTargets(newTargets);
   }
 
@@ -300,7 +290,7 @@ export class RestreamService extends StatefulService<IRestreamState> {
       })),
     ];
 
-    console.log('dual output newTargets ', newTargets);
+    console.log('    * RESTREAM newTargets ', newTargets);
 
     await this.createTargets(newTargets);
   }
@@ -327,6 +317,22 @@ export class RestreamService extends StatefulService<IRestreamState> {
     );
     const url = `https://${this.host}/api/v1/rst/targets`;
     const body = JSON.stringify(
+      targets.map(target => {
+        return {
+          platform: target.platform,
+          streamKey: target.streamKey,
+          enabled: true,
+          dcProtection: false,
+          idleTimeout: 30,
+          label: `${target.platform} target`,
+          video: target.hasOwnProperty('video') && target.video,
+        };
+      }),
+    );
+
+    console.log('body ', body);
+    console.log(
+      'body obj ',
       targets.map(target => {
         return {
           platform: target.platform,
