@@ -326,6 +326,7 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     // assign nodes to both contexts in dual output mode
 
     if (this.views.hasNodeMap()) {
+      console.log('IF hasNodeMap');
       if (!this.videoSettingsService.contexts.vertical) {
         this.videoSettingsService.establishVideoContext('vertical');
       }
@@ -341,6 +342,7 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
         this.sceneNodeHandled.next(index);
       });
     } else {
+      console.log('ELSE create node map');
       // if there is no node map for the scene, it has never been active in dual output mode
       // so will not have vertical nodes
       const sceneToMapId = sceneId ?? this.views.activeSceneId;
@@ -353,6 +355,7 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
         this.sceneNodeHandled.next(index);
       });
     }
+    console.log('DONE ASSIGNING');
     this.SET_IS_LOADING(false);
   }
 
@@ -380,7 +383,9 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     const nodes = this.scenesService.views.getScene(sceneId).getNodes();
 
     nodes.forEach(node => {
+      console.log('assigning display');
       if (!node?.display) {
+        console.log('assigning display for ', node.id);
         const display = this.views.getNodeDisplay(node.id, sceneId);
         this.assignNodeContext(node, display);
       }

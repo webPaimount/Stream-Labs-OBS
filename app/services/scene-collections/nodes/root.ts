@@ -117,6 +117,7 @@ export class RootNode extends Node<ISchema, {}> {
       if (this.data.guestCam) {
         await this.data.guestCam.load();
       }
+      console.log('loaded root');
     }
   }
 

@@ -13,6 +13,7 @@ import {
   EScaleType,
   EBlendingMode,
   EBlendingMethod,
+  isItem,
 } from './index';
 import Utils from 'services/utils';
 import * as obs from '../../../obs-api';
@@ -25,6 +26,7 @@ import uuid from 'uuid/v4';
 import { assertIsDefined, getDefined } from 'util/properties-type-guards';
 import { VideoSettingsService, TDisplayType } from 'services/settings-v2';
 import { DualOutputService } from 'services/dual-output';
+import { GuestCamService } from 'app-services';
 
 export type TSceneNode = SceneItem | SceneItemFolder;
 
@@ -46,6 +48,7 @@ export class Scene {
   @Inject() private selectionService: SelectionService;
   @Inject() private videoSettingsService: VideoSettingsService;
   @Inject() private dualOutputService: DualOutputService;
+  @Inject() private guestCamService: GuestCamService;
 
   readonly state: IScene;
 
@@ -139,9 +142,9 @@ export class Scene {
   /**
    * In dual output mode, the active displays determine the nodes shown
    * in the source selector, so filter them while getting the node models
-   * for optimal performance.
+   * for optimal performance. Sacrifice readability for optimization.
    */
-  getSourceSelectorNodes(): TSceneNode[] {
+  getSourceSelectorNodes(): any[] {
     if (
       this.dualOutputService.views.hasVerticalNodes &&
       this.dualOutputService.views.dualOutputMode
@@ -149,28 +152,80 @@ export class Scene {
       // for optimized performance, check hashmap instead of list of vertical ids
       const nodeMap = this.dualOutputService.views.activeSceneNodeMap;
       if (this.dualOutputService.views.activeDisplays.horizontal) {
-        return this.state.nodes.filter(node => {
+        return this.state.nodes.reduce((displayedNodes, node) => {
           if (nodeMap[node.id]) {
-            return node.sceneNodeType === 'folder'
-              ? this.getFolder(node.id)!
-              : this.getItem(node.id)!;
+            displayedNodes.push(this.formatSourceSelectorNode(node as TSceneNode));
           }
-        }) as TSceneNode[];
+          return displayedNodes;
+        }, []);
       }
 
       if (this.dualOutputService.views.activeDisplays.vertical) {
-        return this.state.nodes.filter(node => {
-          if (nodeMap[node.id]) {
-            return node.sceneNodeType === 'folder'
-              ? this.getFolder(node.id)!
-              : this.getItem(node.id)!;
+        const verticalNodeIds = new Set(this.dualOutputService.views.verticalNodeIds);
+        return this.state.nodes.reduce((displayedNodes, node) => {
+          if (verticalNodeIds.has(node.id)) {
+            displayedNodes.push(this.formatSourceSelectorNode(node as TSceneNode));
           }
-        }) as TSceneNode[];
+          return displayedNodes;
+        }, []);
       }
     }
 
     // vanilla scenes will not have vertical nodes so just return all
-    return this.getNodes();
+    return this.state.nodes.map(node => this.formatSourceSelectorNode(node as TSceneNode));
+  }
+
+  getNameForNode(node: TSceneNode) {
+    if (isItem(node)) {
+      const item = node as ISceneItem;
+      return this.sourcesService.state.sources[item.sourceId!].name;
+    }
+
+    return node.name;
+  }
+
+  formatSourceSelectorNode(node: TSceneNode) {
+    let items: ISceneItem[] = [];
+    if (node.sceneNodeType === 'folder') {
+      const children = this.state.nodes.filter(n => n.parentId === node.id);
+
+      children.forEach(c => (items = items.concat(this.getItemsForNode(c.id))));
+    } else {
+      items = [node as ISceneItem];
+    }
+
+    const title = this.getNameForNode(node);
+
+    const isVisible = items.some(i => i.visible);
+    const isLocked = items.every(i => i.locked);
+    const isRecordingVisible = items.every(i => i.recordingVisible);
+    const isStreamVisible = items.every(i => i.streamVisible);
+    const isGuestCamActive = items.some(i => {
+      return (
+        this.sourcesService.state.sources[i.sourceId].type === 'mediasoupconnector' &&
+        !!this.guestCamService.views.getGuestBySourceId(i.sourceId)
+      );
+    });
+    const isDualOutputActive = this.dualOutputService.views.dualOutputMode;
+
+    const isFolder = !isItem(node);
+
+    // create the object
+    return {
+      id: node.id,
+      title,
+      isVisible,
+      isLocked,
+      isRecordingVisible,
+      isStreamVisible,
+      isGuestCamActive,
+      isDualOutputActive,
+      parentId: node.parentId,
+      sceneId: node.sceneId,
+      sourceId: isItem(node) && node.sourceId,
+      canShowActions: items.length > 0,
+      isFolder,
+    };
   }
 
   getSelection(itemsList?: TNodesList): Selection {

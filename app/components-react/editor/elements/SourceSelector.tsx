@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Tooltip, Tree } from 'antd';
 import { DataNode } from 'rc-tree/lib/interface';
 import { TreeProps } from 'rc-tree/lib/Tree';
 import cx from 'classnames';
 import { inject, injectState, injectWatch, mutation, useModule } from 'slap';
 import { SourcesService } from 'services/sources';
-import { ScenesService, TSceneNode, isItem } from 'services/scenes';
+import { ScenesService, TSceneNode, isItem, ISceneItem, Scene } from 'services/scenes';
 import { SelectionService } from 'services/selection';
 import { EditMenu } from 'util/menus/EditMenu';
 import { $t } from 'services/i18n';
@@ -22,6 +22,7 @@ import HelpTip from 'components-react/shared/HelpTip';
 import Translate from 'components-react/shared/Translate';
 import { DualOutputSourceSelector } from './DualOutputSourceSelector';
 import { WidgetsService } from '../../../app-services';
+import { SceneCollectionsService } from 'services/scene-collections';
 import { GuestCamService } from 'app-services';
 import { DualOutputService } from 'services/dual-output';
 interface ISourceMetadata {
@@ -38,6 +39,7 @@ interface ISourceMetadata {
   canShowActions: boolean;
   parentId?: string;
   sceneId?: string;
+  sourceId?: string;
 }
 
 export class SourceSelectorModule {
@@ -50,6 +52,7 @@ export class SourceSelectorModule {
   private audioService = inject(AudioService);
   private guestCamService = inject(GuestCamService);
   private dualOutputService = inject(DualOutputService);
+  private sceneCollectionService = inject(SceneCollectionsService);
 
   sourcesTooltip = $t('The building blocks of your scene. Also contains widgets.');
   addSourceTooltip = $t('Add a new Source to your Scene. Includes widgets.');
@@ -57,6 +60,7 @@ export class SourceSelectorModule {
   addGroupTooltip = $t('Add a Group so you can move multiple Sources at the same time.');
 
   state = injectState({
+    activeScene: this.scenesService.views.activeScene ?? ({} as Scene),
     expandedFoldersIds: [] as string[],
     showTreeMask: true,
   });
@@ -64,6 +68,21 @@ export class SourceSelectorModule {
   nodeRefs = {};
 
   callCameFromInsideTheHouse = false;
+
+  // init module
+  async init() {
+    this.sceneCollectionService.collectionSwitched.subscribe(sceneModel => {
+      const currentScene = getDefined(this.scenesService.views.getScene(sceneModel.id));
+      this.state.setActiveScene(currentScene);
+      console.log('set scene collection switched');
+    });
+
+    this.scenesService.sceneSwitched.subscribe(sceneModel => {
+      const currentScene = getDefined(this.scenesService.views.getScene(sceneModel.id));
+      this.state.setActiveScene(currentScene);
+      console.log('set scene switched');
+    });
+  }
 
   getTreeData(nodeData: ISourceMetadata[]) {
     // recursive function for transforming SceneNode[] to a Tree format of Antd.Tree
@@ -75,6 +94,11 @@ export class SourceSelectorModule {
         if (sceneNode.isFolder) {
           children = getTreeNodes(nodeData.filter(n => n.parentId === sceneNode.id));
         }
+
+        const icon = this.determineIcon(
+          !sceneNode.isFolder,
+          sceneNode.isFolder ? sceneNode.id : sceneNode.sourceId!,
+        );
 
         return {
           title: (
@@ -101,7 +125,7 @@ export class SourceSelectorModule {
           ),
           isLeaf: !children,
           key: sceneNode.id,
-          switcherIcon: <i className={sceneNode.icon} />,
+          switcherIcon: <i className={icon} />,
           children,
         };
       });
@@ -110,40 +134,63 @@ export class SourceSelectorModule {
     return getTreeNodes(nodeData.filter(n => !n.parentId));
   }
 
+  getItemsForNode(sceneNodeId: string): ISceneItem[] {
+    return this.state.activeScene.getItemsForNode(sceneNodeId);
+  }
+
   get nodeData(): ISourceMetadata[] {
-    return this.scene.getSourceSelectorNodes().map(node => {
-      const itemsForNode = this.scene.getItemsForNode(node.id);
-      const isVisible = itemsForNode.some(i => i.visible);
-      const isLocked = itemsForNode.every(i => i.locked);
-      const isRecordingVisible = itemsForNode.every(i => i.recordingVisible);
-      const isStreamVisible = itemsForNode.every(i => i.streamVisible);
-      const isGuestCamActive = itemsForNode.some(i => {
-        return (
-          this.sourcesService.state.sources[i.sourceId].type === 'mediasoupconnector' &&
-          !!this.guestCamService.views.getGuestBySourceId(i.sourceId)
-        );
-      });
-      const isDualOutputActive = this.isDualOutputActive;
+    return this.scene.getSourceSelectorNodes() as ISourceMetadata[];
+    // return this.scene.getSourceSelectorNodes().map(node => {
+    // @@@ TODO: remove
+    // const startA = performance.now();
 
-      const isFolder = !isItem(node);
+    // this.getItemsForNode(node.id);
 
-      // create the object
-      return {
-        id: node.id,
-        title: this.getNameForNode(node),
-        icon: this.determineIcon(!isFolder, isFolder ? node.id : node.sourceId),
-        isVisible,
-        isLocked,
-        isRecordingVisible,
-        isStreamVisible,
-        isGuestCamActive,
-        isDualOutputActive,
-        parentId: node.parentId,
-        sceneId: node.sceneId,
-        canShowActions: itemsForNode.length > 0,
-        isFolder,
-      };
-    });
+    // // @@@ TODO: remove
+    // const endA = performance.now();
+    // console.log(`\ngetItemsForNode Execution time: ${endA - startA} ms`);
+
+    // // @@@ TODO: remove
+    // const startB = performance.now();
+
+    // this.scene.getItemsForNode(node.id);
+
+    // // @@@ TODO: remove
+    // const endB = performance.now();
+    // console.log(`this.scene.getItemsForNode Execution time: ${endB - startB} ms\n`);
+
+    //   const itemsForNode = this.scene.getItemsForNode(node.id);
+    //   const isVisible = itemsForNode.some(i => i.visible);
+    //   const isLocked = itemsForNode.every(i => i.locked);
+    //   const isRecordingVisible = itemsForNode.every(i => i.recordingVisible);
+    //   const isStreamVisible = itemsForNode.every(i => i.streamVisible);
+    //   const isGuestCamActive = itemsForNode.some(i => {
+    //     return (
+    //       this.sourcesService.state.sources[i.sourceId].type === 'mediasoupconnector' &&
+    //       !!this.guestCamService.views.getGuestBySourceId(i.sourceId)
+    //     );
+    //   });
+    //   const isDualOutputActive = this.isDualOutputActive;
+
+    //   const isFolder = !isItem(node);
+
+    //   // create the object
+    //   return {
+    //     id: node.id,
+    //     title: this.getNameForNode(node),
+    //     icon: this.determineIcon(!isFolder, isFolder ? node.id : node.sourceId),
+    //     isVisible,
+    //     isLocked,
+    //     isRecordingVisible,
+    //     isStreamVisible,
+    //     isGuestCamActive,
+    //     isDualOutputActive,
+    //     parentId: node.parentId,
+    //     sceneId: node.sceneId,
+    //     canShowActions: itemsForNode.length > 0,
+    //     isFolder,
+    //   };
+    // });
   }
 
   // TODO: Clean this up.  These only access state, no helpers
@@ -445,8 +492,9 @@ export class SourceSelectorModule {
   }
 
   get scene() {
-    const scene = getDefined(this.scenesService.views.activeScene);
-    return scene;
+    // const scene = getDefined(this.scenesService.views.activeScene);
+    // console.log('changing?');
+    return this.state.activeScene;
   }
 }
 
@@ -535,14 +583,15 @@ function ItemsTree() {
     selectiveRecordingEnabled,
   ]);
 
-  // @@@ TODO: remove
-  const start = performance.now();
-
-  const treeData = getTreeData(nodeData);
-
-  // @@@ TODO: remove
-  const end = performance.now();
-  console.log(`getTreeData Execution time: ${end - start} ms`);
+  const treeData = useMemo(() => {
+    // @@@ TODO: remove
+    const start = performance.now();
+    const data = getTreeData(nodeData);
+    // @@@ TODO: remove
+    const end = performance.now();
+    console.log(`getTreeData Execution time: ${end - start} ms`);
+    return data;
+  }, [nodeData]);
 
   return (
     <div
@@ -624,9 +673,9 @@ const TreeNode = React.forwardRef(
         {p.canShowActions && (
           <>
             {p.isGuestCamActive && <i className="fa fa-signal" />}
-            {p.isDualOutputActive && (
+            {/* {p.isDualOutputActive && (
               <DualOutputSourceSelector nodeId={p.id} sceneId={p?.sceneId} />
-            )}
+            )} */}
             {p.selectiveRecordingEnabled && (
               <Tooltip title={selectiveRecordingMetadata().tooltip} placement="left">
                 <i
