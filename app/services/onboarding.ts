@@ -130,6 +130,7 @@ interface IOnboardingServiceState {
   options: IOnboardingOptions;
   importedFromObs: boolean;
   existingSceneCollections: boolean;
+  hasSceneNodeMap: boolean;
 }
 
 export interface IThemeMetadata {
@@ -193,7 +194,13 @@ class OnboardingViews extends ViewHandler<IOnboardingServiceState> {
       steps.push(ONBOARDING_STEPS()[EOnboardingSteps.ThemeSelector]);
     }
 
-    if (userViews.isTwitchAuthed || userViews.isYoutubeAuthed || recordingModeEnabled) {
+    /**
+     * The auto optimizer cannot be used with dual output scenes due to API restrictions
+     */
+    if (
+      !this.state.hasSceneNodeMap &&
+      (userViews.isTwitchAuthed || userViews.isYoutubeAuthed || recordingModeEnabled)
+    ) {
       steps.push(ONBOARDING_STEPS()[EOnboardingSteps.Optimize]);
     }
 
@@ -215,6 +222,7 @@ export class OnboardingService extends StatefulService<IOnboardingServiceState> 
     },
     importedFromObs: false,
     existingSceneCollections: false,
+    hasSceneNodeMap: false,
   };
 
   localStorageKey = 'UserHasBeenOnboarded';
@@ -239,6 +247,11 @@ export class OnboardingService extends StatefulService<IOnboardingServiceState> 
   @mutation()
   SET_EXISTING_COLLECTIONS(val: boolean) {
     this.state.existingSceneCollections = val;
+  }
+
+  @mutation()
+  SET_HAS_NODE_MAP(val: boolean) {
+    this.state.hasSceneNodeMap = val;
   }
 
   async fetchThemeData(id: string) {
@@ -269,8 +282,23 @@ export class OnboardingService extends StatefulService<IOnboardingServiceState> 
     );
   }
 
+  /**
+   * When this is true, the active scene collection loading on app start is a dual output scene.
+   * This is primarily used to skip the optimizer step in the onboarding flow. The auto-optimizer
+   * cannot be used for dual output scenes.
+   */
+  get hasSceneNodeMap() {
+    if (!this.sceneCollectionsService?.sceneNodeMaps) {
+      console.log('has node map false');
+      return false;
+    }
+    console.log('has node map ', JSON.stringify(this.sceneCollectionsService?.sceneNodeMaps));
+    return Object.entries(this.sceneCollectionsService?.sceneNodeMaps).length > 0;
+  }
+
   init() {
     this.setExistingCollections();
+    this.setHasSceneNodeMap();
   }
 
   setObsImport(val: boolean) {
@@ -279,6 +307,10 @@ export class OnboardingService extends StatefulService<IOnboardingServiceState> 
 
   setExistingCollections() {
     this.SET_EXISTING_COLLECTIONS(this.existingSceneCollections);
+  }
+
+  setHasSceneNodeMap() {
+    this.SET_EXISTING_COLLECTIONS(this.hasSceneNodeMap);
   }
 
   // A login attempt is an abbreviated version of the onboarding process,
