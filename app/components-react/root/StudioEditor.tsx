@@ -372,6 +372,11 @@ function DualOutputControls(p: { stacked: boolean }) {
       <div className={styles.manageLink}>
         <a onClick={openSettingsWindow}>{$t('Manage Dual Output')}</a>
       </div>
+      <div className={styles.verticalPopout}>
+        <a onClick={() => console.log('pop')}>
+          <i className="icon-pop-out-2" />
+        </a>
+      </div>
     </div>
   );
 }
