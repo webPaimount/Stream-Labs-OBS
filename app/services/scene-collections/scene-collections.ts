@@ -120,7 +120,6 @@ export class SceneCollectionsService extends Service implements ISceneCollection
     if (this.activeCollection && this.activeCollection.operatingSystem === getOS()) {
       await this.load(this.activeCollection.id, true);
     } else if (this.loadableCollections.length > 0) {
-      console.log('does not have active');
       let latestId = this.loadableCollections[0].id;
       let latestModified = this.loadableCollections[0].modified;
 
