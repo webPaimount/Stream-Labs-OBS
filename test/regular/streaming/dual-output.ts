@@ -26,22 +26,32 @@ useWebdriver();
 /**
  * Dual output video settings
  */
-test.skip('User must be logged in to use Dual Output', async (t: TExecutionContext) => {
+test('User must be logged in to use Dual Output', async (t: TExecutionContext) => {
   await toggleDualOutputMode(false);
   await focusChild();
   t.true(await isDisplayed('form#login-modal', { timeout: 1000 }));
 });
 
-test.skip('Dual output checkbox toggles Dual Output mode', async (t: TExecutionContext) => {
+test('Dual output checkbox toggles Dual Output mode', async (t: TExecutionContext) => {
   await logIn();
   await toggleDualOutputMode();
   await focusMain();
-  // @@@ TODO check for property, not element
   t.true(await isDisplayed('div#vertical-display'));
 
   await toggleDualOutputMode();
   await focusMain();
   t.false(await isDisplayed('div#vertical-display'));
+});
+
+test('User can popout vertical display', async (t: TExecutionContext) => {
+  await logIn();
+  await toggleDualOutputMode();
+  await focusMain();
+  t.true(await isDisplayed('div#dual-output-header'));
+
+  await clickIfDisplayed('a#vertical-popout-button');
+  await focusChild();
+  t.true(await isDisplayed('div#vertical-display-popout'));
 });
 
 /**

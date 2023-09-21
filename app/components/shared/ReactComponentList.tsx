@@ -506,7 +506,17 @@ export class Hotkeys extends ReactComponent<{
 @Component({
   props: {
     name: { default: 'GLVolmeters' },
-    wrapperStyles: { default: () => ({ position: 'absolute', left: '17px', right: '17px', height: '100%' }) },
+    wrapperStyles: {
+      default: () => ({ position: 'absolute', left: '17px', right: '17px', height: '100%' }),
+    },
   },
 })
 export class GLVolmeters extends ReactComponent {}
+
+@Component({
+  props: {
+    name: { default: 'VerticalDisplayPopout' },
+    wrapperStyles: { default: () => ({ height: '100%' }) },
+  },
+})
+export class VerticalDisplayPopout extends ReactComponent {}

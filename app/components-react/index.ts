@@ -70,6 +70,7 @@ import EditTransform from './windows/EditTransform';
 import InstalledApps from './windows/settings/InstalledApps';
 import Hotkeys from './windows/settings/Hotkeys';
 import GLVolmeters from './root/GLVolmeters';
+import VerticalDisplayPopout from './windows/VerticalDisplayPopout';
 
 // list of React components to be used inside Vue components
 export const components = {
@@ -144,4 +145,5 @@ export const components = {
   Blank,
   Hotkeys,
   GLVolmeters: createRoot(GLVolmeters),
+  VerticalDisplayPopout,
 };

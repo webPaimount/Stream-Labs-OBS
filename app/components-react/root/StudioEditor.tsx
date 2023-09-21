@@ -9,6 +9,17 @@ import { ERenderingMode } from '../../../obs-api';
 import { TDisplayType } from 'services/settings-v2';
 import { message } from 'antd';
 
+export interface EventHandlers {
+  onOutputResize(rect: IRectangle, display: TDisplayType): void;
+  onMouseDown(event: React.MouseEvent, display: TDisplayType): void;
+  onMouseUp(event: React.MouseEvent, display: TDisplayType): void;
+  onMouseEnter(event: React.MouseEvent, display: TDisplayType): void;
+  onMouseDblClick(event: React.MouseEvent, display: TDisplayType): void;
+  onMouseMove: (event: React.MouseEvent, display: TDisplayType) => void;
+  enablePreview(): void;
+  onContextMenu(event: React.MouseEvent): void;
+}
+
 export default function StudioEditor() {
   const {
     WindowsService,
@@ -189,7 +200,13 @@ export default function StudioEditor() {
       {displayEnabled && (
         <div className={cx(styles.studioModeContainer, { [styles.stacked]: studioModeStacked })}>
           {v.studioMode && <StudioModeControls stacked={studioModeStacked} />}
-          {v.dualOutputMode && <DualOutputControls stacked={studioModeStacked} />}
+          {v.dualOutputMode && (
+            <DualOutputControls
+              stacked={studioModeStacked}
+              eventHandlers={eventHandlers}
+              sourceId={sourceId}
+            />
+          )}
           <div
             className={cx(styles.studioDisplayContainer, { [styles.stacked]: studioModeStacked })}
           >
@@ -342,10 +359,34 @@ function StudioModeControls(p: { stacked: boolean }) {
   );
 }
 
-function DualOutputControls(p: { stacked: boolean }) {
+function DualOutputControls(p: {
+  stacked: boolean;
+  eventHandlers: EventHandlers;
+  sourceId?: string;
+}) {
   function openSettingsWindow() {
     Services.SettingsService.actions.showSettings('Video');
   }
+
+  /**
+   * Pop out the vertical display into its own child window
+   */
+  function popOutVerticalDisplay() {
+    // Services.UsageStatisticsService.actions.recordAnalyticsEvent('DualOutput', {
+    //   type: 'VerticalDisplayPopout',
+    // });
+
+    Services.WindowsService.actions.showWindow({
+      componentName: 'VerticalDisplayPopout',
+      title: $t('Vertical Display Editor'),
+      queryParams: { eventHandlers: p.eventHandlers, sourceId: p.sourceId },
+      size: {
+        width: 830,
+        height: 800,
+      },
+    });
+  }
+
   const showHorizontal = Services.DualOutputService.views.showHorizontalDisplay;
   const showVertical =
     Services.DualOutputService.views.showVerticalDisplay &&
@@ -372,8 +413,8 @@ function DualOutputControls(p: { stacked: boolean }) {
       <div className={styles.manageLink}>
         <a onClick={openSettingsWindow}>{$t('Manage Dual Output')}</a>
       </div>
-      <div className={styles.verticalPopout}>
-        <a onClick={() => console.log('pop')}>
+      <div id="vertical-popout-button" className={styles.verticalPopout}>
+        <a onClick={popOutVerticalDisplay}>
           <i className="icon-pop-out-2" />
         </a>
       </div>
