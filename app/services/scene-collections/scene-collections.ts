@@ -40,6 +40,7 @@ import * as remote from '@electron/remote';
 import { GuestCamNode } from './nodes/guest-cam';
 import { DualOutputService } from 'services/dual-output';
 import { NodeMapNode } from './nodes/node-map';
+import { SettingsService } from 'services/settings';
 
 const uuid = window['require']('uuid/v4');
 
@@ -88,6 +89,7 @@ export class SceneCollectionsService extends Service implements ISceneCollection
   @Inject() transitionsService: TransitionsService;
   @Inject() streamingService: StreamingService;
   @Inject() dualOutputService: DualOutputService;
+  @Inject() settingsService: SettingsService;
   @Inject() private defaultHardwareService: DefaultHardwareService;
 
   collectionAdded = new Subject<ISceneCollectionsManifestEntry>();
@@ -347,6 +349,7 @@ export class SceneCollectionsService extends Service implements ISceneCollection
    * @params Boolean for if the vertical sources should be assigned to the horizontal display
    * @returns String filepath for new collection
    */
+  @RunInLoadingMode()
   async convertDualOutputCollection(
     assignToHorizontal: boolean = false,
   ): Promise<string | undefined> {
@@ -361,6 +364,9 @@ export class SceneCollectionsService extends Service implements ISceneCollection
     await this.load(collectionId);
 
     await this.convertToVanillaSceneCollection(assignToHorizontal);
+
+    // reopen child window
+    this.settingsService.showSettings('Experimental');
 
     return this.stateService.getCollectionFilePath(collectionId);
   }
