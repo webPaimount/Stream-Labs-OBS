@@ -18,14 +18,14 @@ import {
   ISceneCollectionsManifestEntry,
   SceneCollectionsService,
 } from 'services/scene-collections';
-import { IncrementalRolloutService } from 'services/incremental-rollout';
 import { UserService } from 'services/user';
 import { SelectionService } from 'services/selection';
 import { StreamingService } from 'services/streaming';
-import { SettingsService } from 'services/settings';
+import { RunInLoadingMode } from 'services/app/app-decorators';
 
+// the horizontal and vertical properties are the video settings persisted on the frontend
+// the active displays denote which displays are visible
 interface IDisplayVideoSettings {
-  defaultDisplay: TDisplayType;
   horizontal: IVideoInfo;
   vertical: IVideoInfo;
   activeDisplays: {
@@ -34,7 +34,6 @@ interface IDisplayVideoSettings {
   };
 }
 interface IDualOutputServiceState {
-  displays: TDisplayType[];
   platformSettings: TDualOutputPlatformSettings;
   destinationSettings: Dictionary<IDualOutputDestinationSetting>;
   dualOutputMode: boolean;
@@ -46,7 +45,6 @@ class DualOutputViews extends ViewHandler<IDualOutputServiceState> {
   @Inject() private scenesService: ScenesService;
   @Inject() private videoSettingsService: VideoSettingsService;
   @Inject() private sceneCollectionsService: SceneCollectionsService;
-  @Inject() private incrementalRolloutService: IncrementalRolloutService;
   @Inject() private streamingService: StreamingService;
 
   get activeSceneId(): string {
@@ -115,20 +113,12 @@ class DualOutputViews extends ViewHandler<IDualOutputServiceState> {
     return Object.values(this.activeSceneNodeMap);
   }
 
-  get displays() {
-    return this.state.displays;
-  }
-
   get videoSettings() {
     return this.state.videoSettings;
   }
 
   get activeDisplays() {
     return this.state.videoSettings.activeDisplays;
-  }
-
-  get defaultDisplay() {
-    return this.state.videoSettings.defaultDisplay;
   }
 
   get showHorizontalDisplay() {
@@ -279,15 +269,12 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
   @Inject() private userService: UserService;
   @Inject() private selectionService: SelectionService;
   @Inject() private streamingService: StreamingService;
-  @Inject() private settingsService: SettingsService;
 
   static defaultState: IDualOutputServiceState = {
-    displays: ['horizontal', 'vertical'],
     platformSettings: DualOutputPlatformSettings,
     destinationSettings: {},
     dualOutputMode: false,
     videoSettings: {
-      defaultDisplay: 'horizontal',
       horizontal: null,
       vertical: verticalDisplayData, // get settings for horizontal display from obs directly
       activeDisplays: {
@@ -311,21 +298,11 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     this.confirmDestinationDisplays();
 
     /**
-     * The audio settings refresh each time the scene collection is switched.
-     * When a collection is loaded, confirm all sources have been assigned a context.
-     */
-    this.settingsService.audioRefreshed.subscribe(() => {
-      this.convertSceneSources(this.scenesService.views.activeSceneId);
-
-      if (this.state.isLoading) {
-        this.setIsCollectionOrSceneLoading(false);
-      }
-    });
-
-    /**
      * Ensures that the scene nodes are assigned a context
      */
     this.scenesService.sceneSwitched.subscribe(scene => {
+      if (scene?.nodeMapConfirmed) return;
+
       // if the scene is not empty, handle vertical nodes
       if (scene?.nodes.length) {
         this.confirmOrCreateVerticalNodes(scene.id);
@@ -344,14 +321,20 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
   }
 
   /**
-   * Edit dual output display settings
+   * Toggle dual output mode
+   * @param - Optional, status of dual output mode
    */
-
   setdualOutputMode(status?: boolean) {
     this.SET_SHOW_DUAL_OUTPUT(status);
 
     if (this.state.dualOutputMode) {
-      this.confirmOrCreateVerticalNodes(this.views.activeSceneId);
+      const nodeMapConfirmed = this.scenesService.views
+        .getScene(this.views.activeSceneId)
+        .getNodeMapConfirmed();
+
+      if (!nodeMapConfirmed) {
+        this.toggleActive();
+      }
 
       /**
        * Selective recording only works with horizontal sources, so don't show the
@@ -363,6 +346,17 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     } else {
       this.selectionService.views.globalSelection.reset();
     }
+  }
+
+  /**
+   * Run necessary functions to toggle dual output mode on
+   * @remark This is separated from the function to set dual output mode
+   * so that there is only a loading status when toggling on dual output mode
+   * for the first time for the active scene during this session
+   */
+  @RunInLoadingMode()
+  toggleActive() {
+    this.confirmOrCreateVerticalNodes(this.views.activeSceneId);
   }
 
   /**
@@ -384,6 +378,10 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
         console.error('Error toggling Dual Output mode: ', error);
       }
     }
+
+    // set that the scene has handled vertical nodes during the current session
+    const scene = this.scenesService.views.getScene(sceneId);
+    scene.setNodeMapConfirmed();
   }
 
   convertSceneSources(sceneId: string) {

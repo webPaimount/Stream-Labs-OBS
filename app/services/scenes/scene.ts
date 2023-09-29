@@ -39,6 +39,7 @@ export class Scene {
   name: string;
   nodes: (ISceneItem | ISceneItemFolder)[];
   resourceId: string;
+  nodeMapConfirmed?: boolean;
 
   private _resourceId: string;
 
@@ -192,6 +193,21 @@ export class Scene {
     children.forEach(c => (childrenItems = childrenItems.concat(this.getItemsForNode(c.id))));
 
     return childrenItems;
+  }
+
+  /**
+   * Primarily used to prevent continually confirming dual output scenes on load
+   * @returns - boolean, true if the dual output scene has been active during the session
+   */
+  getNodeMapConfirmed() {
+    return this.nodeMapConfirmed;
+  }
+  /**
+   * Primarily used to prevent continually confirming dual output scenes on load
+   * @remark will always be true because the property is undefined by default
+   */
+  setNodeMapConfirmed() {
+    this.SET_NODE_MAP_CONFIRMED();
   }
 
   setName(newName: string) {
@@ -694,5 +710,10 @@ export class Scene {
     const childNodeState = this.state.nodes.find(node => node.id === childNodeId);
     assertIsDefined(childNodeState);
     childNodeState.parentId = parentFolderId;
+  }
+
+  @mutation()
+  private SET_NODE_MAP_CONFIRMED() {
+    this.state.nodeMapConfirmed = true;
   }
 }

@@ -21,6 +21,7 @@ export interface IScene {
   id: string;
   name: string;
   nodes: (ISceneItem | ISceneItemFolder)[];
+  nodeMapConfirmed?: boolean;
 }
 
 export interface ISceneNodeAddOptions {
