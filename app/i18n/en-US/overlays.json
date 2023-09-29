@@ -19,5 +19,11 @@
   "Unable to convert dual output collection.": "Unable to convert dual output collection.",
   "Invalid Scene Collection": "Invalid Scene Collection",
   "Error Converting Dual Output Collection": "Error Converting Dual Output Collection",
-  "Successfully Converted and Exported": "Successfully Converted and Exported"
+  "Successfully Converted and Exported": "Successfully Converted and Exported",
+  "Repair Scene Collection": "Repair Scene Collection",
+  "The below will create a copy of the active scene collection, set the copy as the active collection, and then remove all vertical sources.": "The below will create a copy of the active scene collection, set the copy as the active collection, and then remove all vertical sources.",
+  "Show Components Library": "Show Components Library",
+  "Successfully converted scene collection.": "Successfully converted scene collection.",
+  "Error Getting Scene Collection": "Error Getting Scene Collection",
+  "The duplicated scene collection could not be found.": "The duplicated scene collection could not be found."
 }

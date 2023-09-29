@@ -223,7 +223,7 @@ export class SceneCollectionsService extends Service implements ISceneCollection
     options: ISceneCollectionInternalCreateOptions = {},
   ): Promise<ISceneCollectionsManifestEntry> {
     if (this.dualOutputService.views.dualOutputMode) {
-      this.dualOutputService.actions.setIsCollectionOrSceneLoading(true);
+      this.dualOutputService.setIsCollectionOrSceneLoading(true);
     }
     await this.deloadCurrentApplicationState();
 
@@ -351,13 +351,20 @@ export class SceneCollectionsService extends Service implements ISceneCollection
    */
   @RunInLoadingMode()
   async convertDualOutputCollection(
-    assignToHorizontal: boolean = false,
+    assignToHorizontal: boolean,
+    filePath?: string,
   ): Promise<string | undefined> {
     const name = `${this.activeCollection?.name} - Converted`;
 
     const collectionId = await this.duplicate(name);
 
-    if (!collectionId) return;
+    if (!collectionId) {
+      return this.createConvertMessage(
+        true,
+        'Error Converting Dual Output Collection',
+        'Unable to duplicate current scene collection.',
+      );
+    }
 
     this.dualOutputService.setdualOutputMode(false);
 
@@ -365,10 +372,58 @@ export class SceneCollectionsService extends Service implements ISceneCollection
 
     await this.convertToVanillaSceneCollection(assignToHorizontal);
 
+    const duplicatedSceneCollection = this.stateService.getCollectionFilePath(collectionId);
+
+    if (!duplicatedSceneCollection) {
+      return this.createConvertMessage(
+        true,
+        'Error Getting Scene Collection',
+        'The duplicated scene collection could not be found.',
+      );
+    }
+
+    if (filePath) {
+      // save overlay
+      try {
+        await this.overlaysPersistenceService.saveOverlay(filePath);
+
+        // reopen child window
+        this.settingsService.showSettings('Experimental');
+        return this.createConvertMessage(
+          false,
+          'Successfully Converted and Exported',
+          duplicatedSceneCollection,
+        );
+      } catch (error: unknown) {
+        // if the export was unsuccessful, return to show a message on the frontend
+        console.error(
+          `Unable to save overlay file from ${duplicatedSceneCollection} to ${filePath}`,
+        );
+
+        // reopen child window
+        this.settingsService.showSettings('Experimental');
+
+        return this.createConvertMessage(
+          true,
+          'Error Converting Dual Output Collection',
+          'Unable to duplicate current scene collection.',
+        );
+      }
+    }
+
     // reopen child window
     this.settingsService.showSettings('Experimental');
 
-    return this.stateService.getCollectionFilePath(collectionId);
+    return this.createConvertMessage(false);
+  }
+
+  createConvertMessage(error: boolean, title?: string, content?: string, filepath?: string) {
+    return JSON.stringify({
+      error,
+      title,
+      content,
+      filepath,
+    });
   }
 
   downloadProgress = new Subject<IDownloadProgress>();
@@ -1137,6 +1192,8 @@ export class SceneCollectionsService extends Service implements ISceneCollection
         this.stateService.removeNodeMap(sceneId);
       }
     });
+
+    this.stateService.removeSceneNodeMaps();
 
     await this.save();
   }

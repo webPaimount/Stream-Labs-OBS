@@ -225,6 +225,16 @@ export class SceneCollectionsStateService extends StatefulService<ISceneCollecti
     this.REMOVE_NODE_MAP(sceneId);
   }
 
+  /**
+   * Remove the scene node maps property
+   *
+   * @remark Use when removing a dual output scene
+   * @param sceneId - The scene's id
+   */
+  removeSceneNodeMaps() {
+    this.REMOVE_SCENE_NODE_MAPS();
+  }
+
   @mutation()
   SET_ACTIVE_COLLECTION(id: string) {
     this.state.activeId = id;
@@ -347,5 +357,20 @@ export class SceneCollectionsStateService extends StatefulService<ISceneCollecti
     const nodeMaps = coll.sceneNodeMaps;
     delete nodeMaps[sceneId];
     coll.sceneNodeMaps = { ...nodeMaps };
+  }
+
+  @mutation()
+  REMOVE_SCENE_NODE_MAPS() {
+    const activeId = this.state.activeId;
+    const coll = this.state.collections.find(coll => coll.id === activeId);
+
+    if (!coll || !coll.sceneNodeMaps) return;
+
+    const index = this.state.collections.findIndex(coll => coll.id === activeId);
+
+    const collCopy = { ...coll };
+    delete collCopy.sceneNodeMaps;
+
+    this.state.collections[index] = collCopy;
   }
 }

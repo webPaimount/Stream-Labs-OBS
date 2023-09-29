@@ -9,12 +9,7 @@ import path from 'path';
 import * as remote from '@electron/remote';
 
 export function ExperimentalSettings() {
-  const {
-    ScenesService,
-    WindowsService,
-    SceneCollectionsService,
-    OverlaysPersistenceService,
-  } = Services;
+  const { ScenesService, WindowsService, SceneCollectionsService } = Services;
 
   function repairSceneCollection() {
     ScenesService.repair();
@@ -54,68 +49,79 @@ export function ExperimentalSettings() {
       });
       return;
     }
+
     if (exportOverlay) {
       const { filePath } = await remote.dialog.showSaveDialog({
         filters: [{ name: 'Overlay File', extensions: ['overlay'] }],
       });
-      if (!filePath) return;
 
-      // convert collection
-      const collectionFilePath = await SceneCollectionsService.convertDualOutputCollection(
-        assignToHorizontal,
-      );
-
-      if (!collectionFilePath) {
+      if (!filePath) {
         alertAsync({
           icon: <ExclamationCircleOutlined style={{ color: 'var(--red)' }} />,
           getContainer: '#mainWrapper',
           className: 'react',
-          title: $t('Error Converting Dual Output Collection'),
-          content: $t('Unable to convert dual output collection.'),
+          title: $t('Error Finding Overlay'),
+          content: $t('Unable to find the overlay file for the current scene collection.'),
         });
         return;
       }
 
-      // save overlay
-      OverlaysPersistenceService.saveOverlay(filePath).then(() => {
-        alertAsync({
-          icon: <CheckCircleOutlined style={{ color: 'var(--teal)' }} />,
-          width: 550,
-          getContainer: '#mainWrapper',
-          className: 'react',
-          title: $t('Successfully Converted and Exported'),
-          content: $t('Successfully saved %{filename} to %{filepath}', {
-            filename: path.parse(collectionFilePath).base,
-            filepath: filePath,
-          }),
-        });
-      });
-    } else {
-      // convert collection
-      const filePath = await SceneCollectionsService.convertDualOutputCollection(
-        assignToHorizontal,
-      );
+      await SceneCollectionsService.actions.return
+        .convertDualOutputCollection(assignToHorizontal, filePath)
+        .then((message: string) => {
+          const messageData = JSON.parse(message);
 
-      if (filePath) {
-        alertAsync({
-          icon: <CheckCircleOutlined style={{ color: 'var(--teal)' }} />,
-          width: 550,
-          getContainer: '#mainWrapper',
-          className: 'react',
-          title: $t('Successfully Converted and Exported'),
-          content: $t('Successfully converted %{filename}', {
-            filename: path.parse(filePath).base,
-          }),
+          const className = messageData.error ? 'react convert-error' : 'react convert-success';
+
+          const icon = messageData.error ? (
+            <ExclamationCircleOutlined style={{ color: 'var(--red)' }} />
+          ) : (
+            <CheckCircleOutlined style={{ color: 'var(--teal)' }} />
+          );
+
+          const title = $t(messageData?.title) ?? 'Success';
+
+          const content = messageData.error
+            ? messageData?.content
+            : $t('Successfully saved %{filename} to %{filepath}', {
+                filename: path.parse(filePath).base,
+                filepath: messageData?.content,
+              });
+
+          alertAsync({
+            icon,
+            getContainer: '#mainWrapper',
+            className,
+            title,
+            content,
+          });
         });
-      } else {
-        alertAsync({
-          icon: <ExclamationCircleOutlined style={{ color: 'var(--red)' }} />,
-          getContainer: '#mainWrapper',
-          className: 'react',
-          title: $t('Error Converting Dual Output Collection'),
-          content: $t('Unable to convert dual output collection.'),
+    } else {
+      await SceneCollectionsService.actions.return
+        .convertDualOutputCollection(assignToHorizontal)
+        .then((message: string) => {
+          const messageData = JSON.parse(message);
+
+          const className = messageData.error ? 'react convert-error' : 'react convert-success';
+
+          const icon = messageData.error ? (
+            <ExclamationCircleOutlined style={{ color: 'var(--red)' }} />
+          ) : (
+            <CheckCircleOutlined style={{ color: 'var(--teal)' }} />
+          );
+
+          const title = $t(messageData?.title) ?? 'Success';
+
+          const content = messageData?.content ?? $t('Successfully converted scene collection.');
+
+          alertAsync({
+            icon,
+            getContainer: '#mainWrapper',
+            className,
+            title,
+            content,
+          });
         });
-      }
     }
   }
 
@@ -136,13 +142,13 @@ export function ExperimentalSettings() {
         <div style={{ marginTop: '10px' }}>
           <h4>{$t('Convert to Vanilla Scene')}</h4>
           <Button
-            className="button button--soft-warning"
+            className="convert-collection button button--soft-warning"
             onClick={async () => await convertDualOutputCollection()}
           >
             {$t('Convert')}
           </Button>
           <Button
-            className="button button--soft-warning"
+            className="convert-collection-export button button--soft-warning"
             onClick={async () => await convertDualOutputCollection(false, true)}
           >
             {$t('Convert and Export Overlay')}
@@ -151,13 +157,13 @@ export function ExperimentalSettings() {
         <div style={{ marginTop: '10px' }}>
           <h4>{$t('Assign Vertical Sources to Horizontal Display')}</h4>
           <Button
-            className="button button--soft-warning"
+            className="assign-collection button button--soft-warning"
             onClick={async () => await convertDualOutputCollection(true)}
           >
             {$t('Assign')}
           </Button>
           <Button
-            className="button button--soft-warning"
+            className="assign-collection-export button button--soft-warning"
             onClick={async () => await convertDualOutputCollection(true, true)}
           >
             {$t('Assign and Export Overlay')}
