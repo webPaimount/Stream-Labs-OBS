@@ -399,7 +399,9 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     this.SET_IS_LOADING(true);
     const sceneItems = this.scenesService.views.getSceneItemsBySceneId(sceneId);
     if (!sceneItems) return;
+
     const verticalNodeIds = new Set(this.views.getVerticalNodeIds(sceneId));
+    const sceneItemIds = sceneItems.map(sceneItem => sceneItem.id);
 
     // establish vertical context if it doesn't exist
     if (
@@ -409,15 +411,42 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
       this.videoSettingsService.establishVideoContext('vertical');
     }
 
-    sceneItems.forEach((sceneItem: SceneItem, index: number) => {
+    sceneItems.forEach((sceneItem: SceneItem) => {
+      // confirm all vertical scene items exist
+      if (
+        sceneItem?.display === 'horizontal' &&
+        this.views.activeSceneNodeMap &&
+        (!this.views.activeSceneNodeMap[sceneItem.id] ||
+          !sceneItemIds.includes(this.views.activeSceneNodeMap[sceneItem.id]))
+      ) {
+        // if it's not the first display, copy the scene item
+        const scene = this.scenesService.views.getScene(sceneId ?? this.views.activeSceneId);
+        const verticalSceneItem = scene.addSource(sceneItem.sourceId, {
+          display: 'vertical',
+        });
+
+        if (!verticalSceneItem) return;
+
+        // create node map entry if it doesn't exist
+        if (!this.views.activeSceneNodeMap[sceneItem.id]) {
+          this.sceneCollectionsService.createNodeMapEntry(
+            sceneId,
+            sceneItem.id,
+            verticalSceneItem.id,
+          );
+        }
+
+        // reorder scene node
+        const selection = scene.getSelection(verticalSceneItem.id);
+        selection.placeBefore(sceneItem.id);
+      }
+
       // Item already has a context assigned
       if (sceneItem?.output) return;
 
       const display = verticalNodeIds?.has(sceneItem.id) ? 'vertical' : 'horizontal';
       this.assignNodeContext(sceneItem, sceneItem?.display ?? display);
-      this.sceneNodeHandled.next(index);
     });
-
     this.SET_IS_LOADING(false);
   }
 
