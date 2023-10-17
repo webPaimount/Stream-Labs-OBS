@@ -640,6 +640,10 @@ export class SceneCollectionsService extends Service implements ISceneCollection
         this.scenesService.views.activeScene.remove(true);
       }
 
+      if (this.scenesService.views?.sceneNodeMaps) {
+        this.scenesService.removeSceneNodeMaps();
+      }
+
       this.sourcesService.views.sources.forEach(source => {
         if (source.type !== 'scene') source.remove();
       });

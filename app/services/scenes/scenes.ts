@@ -372,6 +372,11 @@ export class ScenesService extends StatefulService<IScenesState> {
   }
 
   @mutation()
+  REMOVE_SCENE_NODE_MAPS() {
+    this.state.sceneNodeMaps = null;
+  }
+
+  @mutation()
   SET_NODES_LOADED(status: boolean) {
     this.state = { ...this.state, nodesLoaded: status };
   }
@@ -726,8 +731,7 @@ export class ScenesService extends StatefulService<IScenesState> {
   /**
    * Restore a scene node map
    *
-   * @remarks
-   * Primarily used to rollback removing a scene
+   * @remark Primarily used to rollback removing a scene
    *
    * @param sceneId - the scene id
    * @param nodeMap - Optional, the node map to restore
@@ -740,6 +744,17 @@ export class ScenesService extends StatefulService<IScenesState> {
       ...this.state.sceneNodeMaps,
       [sceneId]: nodeMap ?? {},
     };
+  }
+
+  /**
+   * Remove scene node maps property from state
+   *
+   * @remark Primarily used when deloading the application state
+   * or converting a dual output scene collection to a vanilla scene collection
+   */
+  removeSceneNodeMaps() {
+    this.REMOVE_SCENE_NODE_MAPS();
+    this.SET_NODES_LOADED(false);
   }
 
   /**
