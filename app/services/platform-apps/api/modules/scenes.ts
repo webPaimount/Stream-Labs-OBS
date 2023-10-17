@@ -19,7 +19,6 @@ import { IVideo } from 'obs-studio-node';
 import { Inject } from 'services/core/injector';
 import { Subject } from 'rxjs';
 import { DualOutputService } from 'services/dual-output';
-import { SceneCollectionsService } from 'services/scene-collections';
 
 enum ESceneNodeType {
   Folder = 'folder',
@@ -73,7 +72,6 @@ export class ScenesModule extends Module {
 
   @Inject() scenesService: ScenesService;
   @Inject() dualOutputService: DualOutputService;
-  @Inject() sceneCollectionsService: SceneCollectionsService;
 
   constructor() {
     super();
@@ -193,7 +191,7 @@ export class ScenesModule extends Module {
       if (!verticalNodeId) return;
 
       scene.removeItem(verticalNodeId);
-      this.sceneCollectionsService.removeNodeMapEntry(sceneItemId, sceneId);
+      this.scenesService.removeNodeMapEntry(sceneItemId, sceneId);
     }
   }
 

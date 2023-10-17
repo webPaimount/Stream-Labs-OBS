@@ -56,6 +56,12 @@ export interface IScenesState {
   activeSceneId: string;
   displayOrder: string[];
   scenes: Dictionary<IScene>;
+  /**
+   * The `sceneNodeMaps` property is the foundation for dual output.
+   * It allows the horizontal and vertical nodes to reference each other.
+   */
+  sceneNodeMaps?: { [sceneId: string]: Dictionary<string> };
+  nodesLoaded?: boolean;
 }
 
 export interface ISceneCreateOptions {
@@ -196,6 +202,14 @@ class ScenesViews extends ViewHandler<IScenesState> {
     return this.state.displayOrder.map(id => this.getScene(id)!);
   }
 
+  get sceneNodeMaps(): { [sceneId: string]: Dictionary<string> } {
+    return this.state.sceneNodeMaps;
+  }
+
+  get nodesLoaded(): boolean {
+    return this.state.nodesLoaded;
+  }
+
   getSceneItems(): SceneItem[] {
     const sceneItems: SceneItem[] = [];
     this.scenes.forEach(scene => sceneItems.push(...scene.getItems()));
@@ -315,6 +329,51 @@ export class ScenesService extends StatefulService<IScenesState> {
     // This enforces the correctness of the displayOrder.
     const sanitizedOrder = order.filter(id => this.state.scenes[id]);
     this.state.displayOrder = sanitizedOrder;
+  }
+
+  @mutation()
+  INIT_NODE_MAPS(sceneNodeMap?: { [sceneId: string]: Dictionary<string> }) {
+    this.state.sceneNodeMaps = sceneNodeMap ?? {};
+  }
+
+  @mutation()
+  CREATE_NODE_MAP_ENTRY(sceneId: string, horizontalNodeId: string, verticalNodeId: string) {
+    if (!this.state.sceneNodeMaps) this.state.sceneNodeMaps = {};
+    if (!this.state.sceneNodeMaps[sceneId]) this.state.sceneNodeMaps[sceneId] = {};
+
+    this.state.sceneNodeMaps[sceneId] = {
+      ...this.state.sceneNodeMaps[sceneId],
+      [horizontalNodeId]: verticalNodeId,
+    };
+  }
+
+  @mutation()
+  REMOVE_NODE_MAP_ENTRY(horizontalNodeId: string, sceneId: string) {
+    // confirm existence of scene node map
+    if (!this.state.sceneNodeMaps) return;
+    if (!this.state.sceneNodeMaps[sceneId]) return;
+
+    const nodeMap = this.state.sceneNodeMaps[sceneId];
+    // use the horizontal node id as the key when deleting the node map entry
+    delete nodeMap[horizontalNodeId];
+
+    this.state.sceneNodeMaps[sceneId] = { ...nodeMap };
+  }
+
+  @mutation()
+  REMOVE_NODE_MAP(sceneId: string) {
+    // confirm existence of scene node map
+    if (!this.state.sceneNodeMaps) return;
+    if (!this.state.sceneNodeMaps[sceneId]) return;
+
+    const nodeMaps = this.state.sceneNodeMaps;
+    delete nodeMaps[sceneId];
+    this.state.sceneNodeMaps = { ...nodeMaps };
+  }
+
+  @mutation()
+  SET_NODES_LOADED(status: boolean) {
+    this.state = { ...this.state, nodesLoaded: status };
   }
 
   createScene(name: string, options: ISceneCreateOptions = {}) {
@@ -609,5 +668,89 @@ export class ScenesService extends StatefulService<IScenesState> {
       }
     }
     return true;
+  }
+
+  // Dual Output Scene Node Map Handlers
+
+  /**
+   * Initialize node maps property on scene collections manifest
+   *
+   * @remark The sceneNodeMaps property is used to allow
+   * dual output scenes to track which nodes are paired.
+   * It is a dictionary with the scene id as the key and
+   * the value a key-value pair with the horizontal node id
+   * as the key and the vertical node id as the value.
+   *
+   * @param sceneNodeMap - Optional, the node map to add
+   */
+  initNodeMaps(sceneNodeMap?: { [sceneId: string]: Dictionary<string> }) {
+    this.INIT_NODE_MAPS(sceneNodeMap);
+  }
+
+  /**
+   * Add an entry to the scene node map for dual output
+   *
+   * @remark In order for dual output scenes to know which node is their pair,
+   * add an entry to the scene node map using the horizontal node id as the key
+   * and the vertical node id as the value.
+
+   * @param sceneId - The scene's id
+   * @param horizontalNodeId - The horizontal node's id, to be used as the key
+   * @param verticalNodeId - The vertical node's id, to be used as the value
+   */
+  createNodeMapEntry(sceneId: string, horizontalNodeId: string, verticalNodeId: string) {
+    this.CREATE_NODE_MAP_ENTRY(sceneId, horizontalNodeId, verticalNodeId);
+  }
+
+  /**
+   * Remove a node map entry
+   *
+   * @remark Use for dual output scenes when removing a scene item
+   * @param horizontalNodeId - The horizontal node's id, to be used as the key
+   * @param sceneId - The scene's id, to locate the correct node map in the scene collection
+   */
+  removeNodeMapEntry(horizontalNodeId: string, sceneId: string) {
+    this.REMOVE_NODE_MAP_ENTRY(horizontalNodeId, sceneId);
+  }
+
+  /**
+   * Remove a scene node map
+   *
+   * @remark Use when removing a dual output scene
+   * @param sceneId - The scene's id
+   */
+  removeNodeMap(sceneId: string) {
+    this.REMOVE_NODE_MAP(sceneId);
+  }
+
+  /**
+   * Restore a scene node map
+   *
+   * @remarks
+   * Primarily used to rollback removing a scene
+   *
+   * @param sceneId - the scene id
+   * @param nodeMap - Optional, the node map to restore
+   */
+  restoreNodeMap(sceneId: string, nodeMap?: Dictionary<string>) {
+    // init the scene node maps property if it doesn't exist
+    if (!this.state?.sceneNodeMaps) this.initNodeMaps();
+
+    this.state.sceneNodeMaps = {
+      ...this.state.sceneNodeMaps,
+      [sceneId]: nodeMap ?? {},
+    };
+  }
+
+  /**
+   * Set if dual output nodes have been loaded and confirmed
+   *
+   * @remark To prevent unnecessary repeated confirmations that the
+   * dual output scene collection's horizontal and vertical scene nodes
+   * match the scene node map
+   * @param status - Boolean for if the nodes have been matched with the scene node map
+   */
+  setDualOutputNodesLoaded(status: boolean) {
+    this.SET_NODES_LOADED(status);
   }
 }

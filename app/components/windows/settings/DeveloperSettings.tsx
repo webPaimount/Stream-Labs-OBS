@@ -11,6 +11,7 @@ import VFormGroup from 'components/shared/inputs/VFormGroup.vue';
 import { $t } from 'services/i18n/index';
 import { SceneCollectionsService } from 'services/scene-collections';
 import { OverlaysPersistenceService } from 'services/scene-collections/overlays';
+import { ScenesService } from 'services/scenes';
 import path from 'path';
 import * as remote from '@electron/remote';
 
@@ -27,6 +28,7 @@ export default class DeveloperSettings extends Vue {
   @Inject() platformAppsService: PlatformAppsService;
   @Inject() overlaysPersistenceService: OverlaysPersistenceService;
   @Inject() sceneCollectionsService: SceneCollectionsService;
+  @Inject() scenesService: ScenesService;
 
   settingsFormData: ISettingsSubCategory[] = null;
   busy = false;
@@ -72,9 +74,9 @@ export default class DeveloperSettings extends Vue {
   ) {
     // confirm that the active scene collection is a dual output collection
     if (
-      !this.sceneCollectionsService?.sceneNodeMaps ||
-      (this.sceneCollectionsService?.sceneNodeMaps &&
-        Object.values(this.sceneCollectionsService?.sceneNodeMaps).length === 0)
+      !this.scenesService.views?.sceneNodeMaps ||
+      (this.scenesService.views?.sceneNodeMaps &&
+        Object.values(this.scenesService.views?.sceneNodeMaps).length === 0)
     ) {
       this.error = true;
       this.message = $t('The active scene collection is not a dual output scene collection.');

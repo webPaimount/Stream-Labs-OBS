@@ -7,8 +7,6 @@ import { $t } from 'services/i18n';
 import { DualOutputService } from 'services/dual-output';
 import { TDisplayType, VideoSettingsService } from 'services/settings-v2';
 import { EditorService } from 'services/editor';
-import { SceneCollectionsService } from 'services/scene-collections';
-import { cloneDeep } from 'lodash';
 
 /**
  * Copies nodes
@@ -30,7 +28,6 @@ export class CopyNodesCommand extends Command {
   @Inject() dualOutputService: DualOutputService;
   @Inject() videoSettingsService: VideoSettingsService;
   @Inject() editorService: EditorService;
-  @Inject() sceneCollectionsService: SceneCollectionsService;
 
   description: string;
 
@@ -106,7 +103,7 @@ export class CopyNodesCommand extends Command {
           if (this.display === 'vertical') {
             // when creating dual output nodes for a vanilla scene, the passed in display is set to vertical
             // if the scene has dual output nodes, add a node map entry only when copying a horizontal node
-            this.sceneCollectionsService.createNodeMapEntry(this.destSceneId, node.id, folder.id);
+            this.scenesService.createNodeMapEntry(this.destSceneId, node.id, folder.id);
           }
 
           this.nodeIdsMap[node.id] = folder.id;
@@ -137,7 +134,7 @@ export class CopyNodesCommand extends Command {
 
             // when creating dual output scene nodes, the passed in display is set to vertical
             // if the scene has dual output nodes, add a node map entry only when copying a horizontal node
-            this.sceneCollectionsService.createNodeMapEntry(this.destSceneId, node.id, item.id);
+            this.scenesService.createNodeMapEntry(this.destSceneId, node.id, item.id);
           } else {
             // apply origin scene item settings to copied scene item
             const { display, output, ...settings } = node.getSettings();
@@ -220,7 +217,7 @@ export class CopyNodesCommand extends Command {
               const newHorizontalNodeId = this.nodeIdsMap[origNodeId];
               const newVerticalNodeId = this.nodeIdsMap[origVerticalNodeId];
 
-              this.sceneCollectionsService.createNodeMapEntry(
+              this.scenesService.createNodeMapEntry(
                 this.destSceneId,
                 newHorizontalNodeId,
                 newVerticalNodeId,
@@ -254,7 +251,7 @@ export class CopyNodesCommand extends Command {
       if (node) node.remove();
 
       if (this.dualOutputService.views.hasNodeMap(scene.id)) {
-        this.sceneCollectionsService.removeNodeMapEntry(nodeId, scene.id);
+        this.scenesService.removeNodeMapEntry(nodeId, scene.id);
       }
     });
   }

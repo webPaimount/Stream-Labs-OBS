@@ -269,11 +269,7 @@ export class Scene {
         }
 
         // add entry to node map
-        this.sceneCollectionsService.createNodeMapEntry(
-          this.id,
-          horizontalFolder.id,
-          verticalFolder.id,
-        );
+        this.scenesService.createNodeMapEntry(this.id, horizontalFolder.id, verticalFolder.id);
 
         // create horizontal and vertical nodes
         const files = fs.readdirSync(addPath).reverse();

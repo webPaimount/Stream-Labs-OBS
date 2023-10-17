@@ -58,13 +58,13 @@ class DualOutputViews extends ViewHandler<IDualOutputServiceState> {
   }
 
   get sceneNodeMaps(): { [sceneId: string]: Dictionary<string> } {
-    return this.activeCollection?.sceneNodeMaps || {};
+    return this.scenesService.views?.sceneNodeMaps || {};
   }
 
   get activeSceneNodeMap(): Dictionary<string> {
     return (
-      this.sceneCollectionsService?.sceneNodeMaps &&
-      this.sceneCollectionsService?.sceneNodeMaps[this.activeSceneId]
+      this.scenesService.views?.sceneNodeMaps &&
+      this.scenesService.views?.sceneNodeMaps[this.activeSceneId]
     );
   }
 
@@ -86,7 +86,7 @@ class DualOutputViews extends ViewHandler<IDualOutputServiceState> {
    * will correctly create item and show display toggles.
    */
   get hasSceneNodeMaps(): boolean {
-    const nodeMaps = this.sceneCollectionsService?.sceneNodeMaps;
+    const nodeMaps = this.scenesService.views?.sceneNodeMaps;
     return this.dualOutputMode || (!!nodeMaps && Object.entries(nodeMaps).length > 0);
   }
 
@@ -258,7 +258,7 @@ class DualOutputViews extends ViewHandler<IDualOutputServiceState> {
    * @returns Boolean for whether or not the scene has an entry in the scene collections scene node map.
    */
   hasNodeMap(sceneId?: string): boolean {
-    if (!this.sceneCollectionsService?.sceneNodeMaps) return false;
+    if (!this.scenesService.views?.sceneNodeMaps) return false;
     const nodeMap = sceneId ? this.sceneNodeMaps[sceneId] : this.activeSceneNodeMap;
     return !!nodeMap && Object.keys(nodeMap).length > 0;
   }
@@ -419,11 +419,7 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
 
         // create node map entry if it doesn't exist
         if (!this.views.activeSceneNodeMap[sceneItem.id]) {
-          this.sceneCollectionsService.createNodeMapEntry(
-            sceneId,
-            sceneItem.id,
-            verticalSceneItem.id,
-          );
+          this.scenesService.createNodeMapEntry(sceneId, sceneItem.id, verticalSceneItem.id);
         }
 
         // reorder scene node
@@ -496,7 +492,7 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
         EPlaceType.Before,
       );
 
-      this.sceneCollectionsService.createNodeMapEntry(sceneId, sceneItem.id, copiedSceneItem.id);
+      this.scenesService.createNodeMapEntry(sceneId, sceneItem.id, copiedSceneItem.id);
       return copiedSceneItem;
     }
   }

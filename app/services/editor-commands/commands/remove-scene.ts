@@ -5,7 +5,6 @@ import { RemoveNodesCommand } from './remove-nodes';
 import { $t } from 'services/i18n';
 import { RemoveItemCommand } from './remove-item';
 import { DualOutputService } from 'services/dual-output';
-import { SceneCollectionsService } from 'services/scene-collections';
 
 /**
  * Removes a scene
@@ -19,7 +18,6 @@ import { SceneCollectionsService } from 'services/scene-collections';
 export class RemoveSceneCommand extends Command {
   @Inject() private scenesService: ScenesService;
   @Inject() private dualOutputService: DualOutputService;
-  @Inject() private sceneCollectionsService: SceneCollectionsService;
 
   private sceneName: string;
   private sceneOrder: string[];
@@ -60,7 +58,7 @@ export class RemoveSceneCommand extends Command {
 
     // remove scene node map from collection
     if (this.hasSceneNodeMap) {
-      this.sceneCollectionsService.removeNodeMap(scene.id);
+      this.scenesService.removeNodeMap(scene.id);
     }
 
     scene.remove();
@@ -72,7 +70,7 @@ export class RemoveSceneCommand extends Command {
 
     // restore scene node map to collection
     if (this.hasSceneNodeMap) {
-      this.sceneCollectionsService.restoreNodeMap(this.sceneId);
+      this.scenesService.restoreNodeMap(this.sceneId);
     }
 
     if (this.removeNodesSubcommand) await this.removeNodesSubcommand.rollback();

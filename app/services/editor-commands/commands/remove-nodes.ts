@@ -3,7 +3,7 @@ import { Selection } from 'services/selection';
 import { RemoveFolderCommand } from './remove-folder';
 import { RemoveItemCommand } from './remove-item';
 import { DualOutputService } from 'services/dual-output';
-import { SceneCollectionsService } from 'services/scene-collections';
+import { ScenesService } from 'services/scenes';
 import { $t } from 'services/i18n';
 import { Inject } from 'services/core';
 
@@ -21,7 +21,7 @@ export class RemoveNodesCommand extends Command {
   private removeFolderSubCommands: RemoveFolderCommand[];
   private removeItemSubCommands: RemoveItemCommand[];
   @Inject() dualOutputService: DualOutputService;
-  @Inject() sceneCollectionsService: SceneCollectionsService;
+  @Inject() scenesService: ScenesService;
 
   private selectionName: string;
   private nodeOrder: string[];
@@ -61,7 +61,7 @@ export class RemoveNodesCommand extends Command {
           ),
         };
 
-        this.sceneCollectionsService.removeNodeMapEntry(this.selection.sceneId, folder.id);
+        this.scenesService.removeNodeMapEntry(this.selection.sceneId, folder.id);
       }
 
       const subCommand = new RemoveFolderCommand(this.selection.sceneId, folder.id);
@@ -96,7 +96,7 @@ export class RemoveNodesCommand extends Command {
       const sceneId = this.selection.sceneId;
 
       Object.keys(this.nodeMapEntries).forEach(horizontalNodeId => {
-        this.sceneCollectionsService.createNodeMapEntry(
+        this.scenesService.createNodeMapEntry(
           sceneId,
           horizontalNodeId,
           this.nodeMapEntries[horizontalNodeId],

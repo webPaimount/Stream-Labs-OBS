@@ -5,7 +5,6 @@ import { ScenesService, TSceneNode } from 'services/scenes';
 import { ReorderNodesCommand, EPlaceType } from './reorder-nodes';
 import { $t } from 'services/i18n';
 import { DualOutputService } from 'services/dual-output';
-import { SceneCollectionsService } from 'services/scene-collections';
 
 /**
  * Creates a folder
@@ -28,7 +27,6 @@ import { SceneCollectionsService } from 'services/scene-collections';
 export class CreateFolderCommand extends Command {
   @Inject() private scenesService: ScenesService;
   @Inject() private dualOutputService: DualOutputService;
-  @Inject() private sceneCollectionsService: SceneCollectionsService;
 
   private folderId: string;
   private moveToFolderSubCommand: ReorderNodesCommand;
@@ -59,11 +57,7 @@ export class CreateFolderCommand extends Command {
       });
       this.verticalFolderId = verticalFolder.id;
 
-      this.sceneCollectionsService.createNodeMapEntry(
-        this.sceneId,
-        this.folderId,
-        this.verticalFolderId,
-      );
+      this.scenesService.createNodeMapEntry(this.sceneId, this.folderId, this.verticalFolderId);
     }
 
     if (this.items) {
@@ -116,7 +110,7 @@ export class CreateFolderCommand extends Command {
 
       this.scenesService.views.getScene(this.sceneId).removeFolder(this.verticalFolderId);
 
-      this.sceneCollectionsService.removeNodeMapEntry(this.folderId, this.sceneId);
+      this.scenesService.removeNodeMapEntry(this.folderId, this.sceneId);
     }
 
     // rollback command

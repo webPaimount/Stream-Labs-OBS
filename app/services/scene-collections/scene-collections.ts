@@ -120,7 +120,6 @@ export class SceneCollectionsService extends Service implements ISceneCollection
     if (this.activeCollection && this.activeCollection.operatingSystem === getOS()) {
       await this.load(this.activeCollection.id, true);
     } else if (this.loadableCollections.length > 0) {
-      console.log('does not have active');
       let latestId = this.loadableCollections[0].id;
       let latestModified = this.loadableCollections[0].modified;
 
@@ -128,14 +127,6 @@ export class SceneCollectionsService extends Service implements ISceneCollection
         if (collection.modified > latestModified) {
           latestModified = collection.modified;
           latestId = collection.id;
-        }
-
-        /**
-         * before dual output, collections did not have the scene node map property
-         * so add it here on load
-         */
-        if (!collection.hasOwnProperty('sceneNodeMaps')) {
-          collection.sceneNodeMaps = {};
         }
       });
 
@@ -511,10 +502,6 @@ export class SceneCollectionsService extends Service implements ISceneCollection
     return this.stateService.activeCollection;
   }
 
-  get sceneNodeMaps() {
-    return this.stateService.sceneNodeMaps;
-  }
-
   /* PRIVATE ----------------------------------------------------- */
 
   /**
@@ -730,9 +717,7 @@ export class SceneCollectionsService extends Service implements ISceneCollection
   private async removeCollection(id: string) {
     this.collectionRemoved.next(
       this.collections.find(coll => {
-        const skip = coll?.sceneNodeMaps && Object.values(coll?.sceneNodeMaps).length > 0;
-
-        if (coll.id === id && !skip) {
+        if (coll.id === id) {
           return coll;
         }
       }),
@@ -976,115 +961,14 @@ export class SceneCollectionsService extends Service implements ISceneCollection
   }
 
   /**
-   * Add a scene node map
-   *
-   * @remarks
-   * For dual output scenes, save a node map in the scene collection manifest for each scene
-   * so that the horizontal and vertical nodes for dual output mode
-   * can reference each other.
-   *
-   * @param sceneNodeMap - Optional, the node map to add
-   */
-
-  initNodeMaps(sceneNodeMap?: { [sceneId: string]: Dictionary<string> }) {
-    if (!this.activeCollection) return;
-
-    this.stateService.initNodeMaps(sceneNodeMap);
-  }
-
-  /**
-   * Restore a scene node map
-   *
-   * @remarks
-   * Primarily used to rollback removing a scene
-   *
-   * @param sceneId - the scene id
-   * @param nodeMap - Optional, the node map to restore
-   */
-  restoreNodeMap(sceneId: string, nodeMap?: Dictionary<string>) {
-    if (!this.activeCollection) return;
-    if (!this.activeCollection.hasOwnProperty('sceneNodeMaps')) {
-      this.activeCollection.sceneNodeMaps = {};
-    }
-
-    this.activeCollection.sceneNodeMaps = {
-      ...this.activeCollection.sceneNodeMaps,
-      [sceneId]: nodeMap ?? {},
-    };
-  }
-
-  /**
-   * Add a scene node map entry
-   *
-   * @remarks
-   * In order for dual output scenes to know which node is their pair,
-   * add an entry to the scene node map using the horizontal node id as the key
-   * and the vertical node id as the value.
-   *
-   * @param sceneId - the scene id
-   * @param horizontalNodeId - the horizontal node id, to be used as the key in the map
-   * @param verticalNodeId - the vertical node id, to be used as the value in the map
-   * @returns
-   */
-
-  createNodeMapEntry(sceneId: string, horizontalNodeId: string, verticalNodeId: string) {
-    if (!this.activeCollection) return;
-    if (!this.activeCollection.hasOwnProperty('sceneNodeMaps')) {
-      this.activeCollection.sceneNodeMaps = {};
-    }
-    if (
-      this.activeCollection.sceneNodeMaps &&
-      !this.activeCollection?.sceneNodeMaps.hasOwnProperty(sceneId)
-    ) {
-      this.activeCollection.sceneNodeMaps = {
-        ...this.activeCollection.sceneNodeMaps,
-        [sceneId]: {},
-      };
-    }
-
-    this.stateService.createNodeMapEntry(sceneId, horizontalNodeId, verticalNodeId);
-  }
-
-  /**
-   * Remove an entry from the node map.
-   *
-   * @param horizontalNodeId - The horizontal node id, used as the key to find the vertical node id
-   * @param sceneId - The scene id
-   */
-  removeNodeMapEntry(horizontalNodeId: string, sceneId: string) {
-    if (
-      !this.activeCollection ||
-      !this.activeCollection?.sceneNodeMaps ||
-      !this.activeCollection?.sceneNodeMaps.hasOwnProperty(sceneId)
-    ) {
-      return;
-    }
-
-    const nodeMap = this.activeCollection?.sceneNodeMaps[sceneId];
-    delete nodeMap[horizontalNodeId];
-
-    this.activeCollection.sceneNodeMaps[sceneId] = { ...nodeMap };
-    this.stateService.removeNodeMapEntry(horizontalNodeId, sceneId);
-  }
-
-  /**
-   * Remove the node map for a scene.
-   *
-   * @param sceneId - The scene id
-   */
-  removeNodeMap(sceneId: string) {
-    this.stateService.removeNodeMap(sceneId);
-  }
-
-  /**
    * Convert dual output scene collection to vanilla scene collection
    */
   async convertToVanillaSceneCollection(assignToHorizontal?: boolean) {
-    if (!this.activeCollection?.sceneNodeMaps) return;
+    if (!this.scenesService.views?.sceneNodeMaps) return;
 
     const allSceneIds: string[] = this.scenesService.getSceneIds();
 
-    const dualOutputSceneIds: string[] = Object.keys(this.activeCollection?.sceneNodeMaps);
+    const dualOutputSceneIds: string[] = Object.keys(this.scenesService.views?.sceneNodeMaps);
 
     // check for nodes assigned to the vertical display for all scenes
     allSceneIds.forEach(sceneId => {
@@ -1115,7 +999,9 @@ export class SceneCollectionsService extends Service implements ISceneCollection
              */
             if (isDualOutputScene) {
               const horizontalNodeId = this.dualOutputService.views.getHorizontalNodeId(node.id);
-              if (horizontalNodeId) this.removeNodeMapEntry(sceneId, horizontalNodeId);
+              if (horizontalNodeId) {
+                this.scenesService.removeNodeMapEntry(sceneId, horizontalNodeId);
+              }
             }
           } else {
             node.setDisplay('horizontal');
@@ -1125,7 +1011,7 @@ export class SceneCollectionsService extends Service implements ISceneCollection
 
       if (isDualOutputScene) {
         // remove entry for scene node map
-        this.stateService.removeNodeMap(sceneId);
+        this.scenesService.removeNodeMap(sceneId);
       }
     });
 
