@@ -61,7 +61,6 @@ export interface IScenesState {
    * It allows the horizontal and vertical nodes to reference each other.
    */
   sceneNodeMaps?: { [sceneId: string]: Dictionary<string> };
-  nodesLoaded?: boolean;
 }
 
 export interface ISceneCreateOptions {
@@ -206,10 +205,6 @@ class ScenesViews extends ViewHandler<IScenesState> {
     return this.state.sceneNodeMaps;
   }
 
-  get nodesLoaded(): boolean {
-    return this.state.nodesLoaded;
-  }
-
   getSceneItems(): SceneItem[] {
     const sceneItems: SceneItem[] = [];
     this.scenes.forEach(scene => sceneItems.push(...scene.getItems()));
@@ -224,10 +219,10 @@ class ScenesViews extends ViewHandler<IScenesState> {
     return null;
   }
 
-  getSceneItemsBySceneId(sceneId: string): SceneItem[] | undefined {
+  getSceneNodesBySceneId(sceneId: string): TSceneNode[] | undefined {
     const scene: Scene | null = this.getScene(sceneId);
     if (!scene) return;
-    return scene.getItems();
+    return scene.getNodes();
   }
 
   /**
@@ -374,11 +369,6 @@ export class ScenesService extends StatefulService<IScenesState> {
   @mutation()
   REMOVE_SCENE_NODE_MAPS() {
     this.state.sceneNodeMaps = null;
-  }
-
-  @mutation()
-  SET_NODES_LOADED(status: boolean) {
-    this.state = { ...this.state, nodesLoaded: status };
   }
 
   createScene(name: string, options: ISceneCreateOptions = {}) {
@@ -638,11 +628,7 @@ export class ScenesService extends StatefulService<IScenesState> {
    * Apply a callback for each sceneNode
    * Stop traversing if the callback returns false
    */
-  private traverseScene(
-    sceneId: string,
-    cb: (node: TSceneNode) => boolean,
-    nodeId?: string,
-  ): boolean {
+  traverseScene(sceneId: string, cb: (node: TSceneNode) => boolean, nodeId?: string): boolean {
     let canContinue = true;
     const scene = this.views.getScene(sceneId);
     if (!scene) return false;
@@ -754,18 +740,5 @@ export class ScenesService extends StatefulService<IScenesState> {
    */
   removeSceneNodeMaps() {
     this.REMOVE_SCENE_NODE_MAPS();
-    this.SET_NODES_LOADED(false);
-  }
-
-  /**
-   * Set if dual output nodes have been loaded and confirmed
-   *
-   * @remark To prevent unnecessary repeated confirmations that the
-   * dual output scene collection's horizontal and vertical scene nodes
-   * match the scene node map
-   * @param status - Boolean for if the nodes have been matched with the scene node map
-   */
-  setDualOutputNodesLoaded(status: boolean) {
-    this.SET_NODES_LOADED(status);
   }
 }

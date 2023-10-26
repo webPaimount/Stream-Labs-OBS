@@ -25,7 +25,6 @@ import uuid from 'uuid/v4';
 import { assertIsDefined } from 'util/properties-type-guards';
 import { VideoSettingsService, TDisplayType } from 'services/settings-v2';
 import { DualOutputService } from 'services/dual-output';
-import { SceneCollectionsService } from 'services/scene-collections';
 
 export type TSceneNode = SceneItem | SceneItemFolder;
 
@@ -47,7 +46,6 @@ export class Scene {
   @Inject() private selectionService: SelectionService;
   @Inject() private videoSettingsService: VideoSettingsService;
   @Inject() private dualOutputService: DualOutputService;
-  @Inject() private sceneCollectionsService: SceneCollectionsService;
 
   readonly state: IScene;
 
