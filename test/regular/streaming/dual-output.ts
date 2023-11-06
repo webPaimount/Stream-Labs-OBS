@@ -4,7 +4,6 @@ import {
   waitForSettingsWindowLoaded,
 } from '../../helpers/modules/streaming';
 import {
-  click,
   clickIfDisplayed,
   focusChild,
   focusMain,
@@ -17,7 +16,6 @@ import {
 import { logIn } from '../../helpers/modules/user';
 import { toggleDualOutputMode, toggleDisplay } from '../../helpers/modules/dual-output';
 import { getApiClient } from '../../helpers/api-client';
-import { releaseUserInPool, reserveUserFromPool } from '../../helpers/webdriver/user';
 import { test, useWebdriver, TExecutionContext } from '../../helpers/webdriver';
 import { SceneBuilder } from '../../helpers/scene-builder';
 
@@ -42,6 +40,96 @@ test.skip('Dual output checkbox toggles Dual Output mode', async (t: TExecutionC
   await toggleDualOutputMode();
   await focusMain();
   t.false(await isDisplayed('div#vertical-display'));
+});
+
+test('Dual output duplicates item and folder hierarchy', async (t: TExecutionContext) => {
+  await logIn();
+
+  const sceneBuilder = new SceneBuilder(await getApiClient());
+
+  // Build a complex item and folder hierarchy
+  const sketch = `
+  Item1:
+  Item2:
+  Folder1
+    Item3:
+    Item4:
+  Item5:
+  Folder2
+    Item6:
+    Folder3
+      Item7:
+      Item8:
+    Item9:
+    Folder4
+      Item10:
+  Item11:
+`;
+
+  sceneBuilder.build(sketch);
+
+  t.true(
+    sceneBuilder.isEqualTo(
+      `
+      Item1:
+      Item2:
+      Folder1
+        Item3:
+        Item4:
+      Item5:
+      Folder2
+        Item6:
+        Folder3
+          Item7:
+          Item8:
+        Item9:
+        Folder4
+          Item10:
+      Item11:
+  `,
+    ),
+  );
+
+  // toggle dual output on and convert dual output scene collection
+  await toggleDualOutputMode();
+  await focusMain();
+  t.true(await isDisplayed('div#vertical-display'));
+  t.true(
+    sceneBuilder.isEqualTo(
+      `
+      Item1: color_source
+      Item2: color_source
+      Folder1
+        Item3: color_source
+        Item4: color_source
+      Item5: color_source
+      Folder2
+        Item6: color_source
+        Folder3
+          Item7: color_source
+          Item8: color_source
+        Item9: color_source
+        Folder4
+          Item10: color_source
+      Item11: color_source
+      Item1: color_source
+      Item2: color_source
+      Folder1
+        Item3: color_source
+        Item4: color_source
+      Item5: color_source
+      Folder2
+        Item6: color_source
+        Folder3
+          Item7: color_source
+          Item8: color_source
+        Item9: color_source
+        Folder4
+          Item10: color_source
+      Item11: color_source
+    `,
+    ),
+  );
 });
 
 /**
