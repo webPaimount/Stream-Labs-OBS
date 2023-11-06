@@ -10,6 +10,7 @@ import { TDisplayType, VideoSettingsService } from 'services/settings-v2/video';
 import { TPlatform } from 'services/platforms';
 import { EPlaceType } from 'services/editor-commands/commands/reorder-nodes';
 import { EditorCommandsService } from 'services/editor-commands';
+import { Subject } from 'rxjs';
 import { TOutputOrientation } from 'services/restream';
 import { IVideoInfo } from 'obs-studio-node';
 import { ICustomStreamDestination, StreamSettingsService } from 'services/settings/streaming';
@@ -39,6 +40,7 @@ interface IDualOutputServiceState {
   destinationSettings: Dictionary<IDualOutputDestinationSetting>;
   dualOutputMode: boolean;
   videoSettings: IDisplayVideoSettings;
+  isLoading: boolean;
 }
 
 class DualOutputViews extends ViewHandler<IDualOutputServiceState> {
@@ -53,6 +55,10 @@ class DualOutputViews extends ViewHandler<IDualOutputServiceState> {
 
   get dualOutputMode(): boolean {
     return this.state.dualOutputMode;
+  }
+
+  get isLoading(): boolean {
+    return this.state.isLoading;
   }
 
   get activeCollection(): ISceneCollectionsManifestEntry {
@@ -292,7 +298,10 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
         vertical: false,
       },
     },
+    isLoading: false,
   };
+
+  sceneNodeHandled = new Subject<number>();
 
   get views() {
     return new DualOutputViews(this.state);
@@ -338,9 +347,11 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
       // do nothing for vanilla scene collections
       if (!this.views?.sceneNodeMaps) return;
 
-      // if the scene is not empty, handle vertical nodes
+      // for dual output scene collections, convert vanilla scenes if they are not empty
       if (scene?.nodes.length && !this.views?.sceneNodeMaps[scene.id]) {
+        this.SET_IS_LOADING(true);
         this.createSceneNodes(scene.id);
+        this.SET_IS_LOADING(false);
       }
     });
 
@@ -659,6 +670,14 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     this.SET_VIDEO_SETTING(setting, display);
   }
 
+  /**
+   * Update loading state to show loading animation
+   */
+
+  setIsCollectionOrSceneLoading(status: boolean) {
+    this.SET_IS_LOADING(status);
+  }
+
   @mutation()
   private UPDATE_PLATFORM_SETTING(platform: TPlatform | string, display: TDisplayType) {
     this.state.platformSettings = {
@@ -709,5 +728,10 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
       ...this.state.videoSettings[display],
       ...setting,
     };
+  }
+
+  @mutation()
+  private SET_IS_LOADING(status: boolean) {
+    this.state = { ...this.state, isLoading: status };
   }
 }

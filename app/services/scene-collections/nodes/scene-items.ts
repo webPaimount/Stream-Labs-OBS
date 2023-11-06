@@ -75,7 +75,6 @@ export class SceneItemsNode extends Node<ISchema, {}> {
           const display =
             sceneItem?.display ??
             this.dualOutputService.views.getNodeDisplay(sceneItem.sceneItemId, sceneItem.sceneId);
-          const context = this.videoSettingsService.contexts[display];
 
           hotkeys.save({ sceneItemId: sceneItem.sceneItemId }).then(() => {
             const transform = sceneItem.transform;
@@ -138,12 +137,9 @@ export class SceneItemsNode extends Node<ISchema, {}> {
     // on first load, a dual output scene needs to assign displays and contexts to the scene items
     // but if the scene item already has a display assigned, skip it
     if (this.dualOutputService.views.hasNodeMap(context.scene.id)) {
-      // nodes must be assigned to a context, so if it doesn't exist, establish it
-      if (!this.videoSettingsService.contexts.vertical) {
-        this.videoSettingsService.establishVideoContext('vertical');
-      }
-
       const nodeMap = this.dualOutputService.views.sceneNodeMaps[context.scene.id];
+
+      if (!nodeMap) return;
 
       const verticalNodeIds = Object.values(nodeMap);
 
