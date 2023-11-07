@@ -76,6 +76,10 @@ class DualOutputViews extends ViewHandler<IDualOutputServiceState> {
     );
   }
 
+  get isDualOutputCollection(): boolean {
+    return !!this.activeCollection?.sceneNodeMaps;
+  }
+
   /**
    * Confirm that an entry exists in the scene collections manifest's scene node map property
    */
@@ -324,13 +328,13 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     this.settingsService.audioRefreshed.subscribe(() => {
       // if a scene collection is added in dual output mode, automatically add the
       // scene collection as a dual output scene collection
-      if (!this.views?.sceneNodeMaps && this.state.dualOutputMode) {
+      if (!this.views?.isDualOutputCollection && this.state.dualOutputMode) {
         this.createSceneNodes(this.views.activeSceneId);
       }
 
       // if we're not in dual output mode and there is no scene node map
       // it is a vanilla scene collection, so there is no need to confirm the nodes
-      if (!this.views?.sceneNodeMaps) return;
+      if (!this.views?.isDualOutputCollection) return;
 
       // only confirm nodes for dual output scene collections
       // this.confirmSceneNodeMaps();
@@ -345,7 +349,7 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
      */
     this.scenesService.sceneSwitched.subscribe(scene => {
       // do nothing for vanilla scene collections
-      if (!this.views?.sceneNodeMaps) return;
+      if (!this.views?.isDualOutputCollection) return;
 
       // for dual output scene collections, convert vanilla scenes if they are not empty
       if (scene?.nodes.length && !this.views?.sceneNodeMaps[scene.id]) {

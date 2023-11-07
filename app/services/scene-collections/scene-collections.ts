@@ -120,7 +120,6 @@ export class SceneCollectionsService extends Service implements ISceneCollection
     if (this.activeCollection && this.activeCollection.operatingSystem === getOS()) {
       await this.load(this.activeCollection.id, true);
     } else if (this.loadableCollections.length > 0) {
-      console.log('does not have active');
       let latestId = this.loadableCollections[0].id;
       let latestModified = this.loadableCollections[0].modified;
 
@@ -128,14 +127,6 @@ export class SceneCollectionsService extends Service implements ISceneCollection
         if (collection.modified > latestModified) {
           latestModified = collection.modified;
           latestId = collection.id;
-        }
-
-        /**
-         * before dual output, collections did not have the scene node map property
-         * so add it here on load
-         */
-        if (!collection.hasOwnProperty('sceneNodeMaps')) {
-          collection.sceneNodeMaps = {};
         }
       });
 
@@ -991,6 +982,8 @@ export class SceneCollectionsService extends Service implements ISceneCollection
 
   initNodeMaps(sceneNodeMap?: { [sceneId: string]: Dictionary<string> }) {
     if (!this.activeCollection) return;
+
+    console.log('initting');
 
     this.stateService.initNodeMaps(sceneNodeMap);
   }
