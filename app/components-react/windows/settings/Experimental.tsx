@@ -13,7 +13,7 @@ export function ExperimentalSettings() {
 
   function repairSceneCollection() {
     ScenesService.repair();
-    alertAsync('Repair finished. See details in the log file');
+    alertAsync($t('Repair finished. See details in the log file'));
   }
 
   function showDemoComponents() {
@@ -21,6 +21,16 @@ export function ExperimentalSettings() {
       title: 'Shared React Components',
       componentName: 'SharedComponentsLibrary',
       size: { width: 1000, height: 1000 },
+    });
+  }
+
+  async function showInvalidCollectionError() {
+    alertAsync({
+      icon: <ExclamationCircleOutlined style={{ color: 'var(--red)' }} />,
+      getContainer: '#mainWrapper',
+      className: 'react',
+      title: $t('Invalid Scene Collection'),
+      content: $t('The active scene collection is not a dual output scene collection.'),
     });
   }
 
@@ -32,18 +42,17 @@ export function ExperimentalSettings() {
    */
   async function convertDualOutputCollection(assignToHorizontal: boolean = false) {
     // confirm that the active scene collection is a dual output collection
+
+    if (!SceneCollectionsService?.sceneNodeMaps) {
+      await showInvalidCollectionError();
+      return;
+    }
+
     if (
-      !SceneCollectionsService?.sceneNodeMaps ||
-      (SceneCollectionsService?.sceneNodeMaps &&
-        Object.values(SceneCollectionsService?.sceneNodeMaps).length === 0)
+      SceneCollectionsService?.sceneNodeMaps &&
+      Object.values(SceneCollectionsService?.sceneNodeMaps).length === 0
     ) {
-      alertAsync({
-        icon: <ExclamationCircleOutlined style={{ color: 'var(--red)' }} />,
-        getContainer: '#mainWrapper',
-        className: 'react',
-        title: $t('Invalid Scene Collection'),
-        content: $t('The active scene collection is not a dual output scene collection.'),
-      });
+      await showInvalidCollectionError();
       return;
     }
 
@@ -60,7 +69,7 @@ export function ExperimentalSettings() {
           <CheckCircleOutlined style={{ color: 'var(--teal)' }} />
         );
 
-        const title = $t(messageData?.title) ?? 'Success';
+        const title = $t(messageData?.title) ?? $t('Success');
 
         const content = messageData?.content ?? $t('Successfully converted scene collection.');
 
@@ -78,7 +87,7 @@ export function ExperimentalSettings() {
     <ObsSettingsSection>
       <div className="section">
         <h2>{$t('Repair Scene Collection')}</h2>
-        <Button onClick={repairSceneCollection}>Repair Scene Collection</Button>
+        <Button onClick={repairSceneCollection}>{$t('Repair Scene Collection')}</Button>
       </div>
       <div className="section">
         <h2>{$t('Convert Dual Output Scene Collection')}</h2>
