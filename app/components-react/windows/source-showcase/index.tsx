@@ -15,7 +15,6 @@ import {
 import styles from './SourceShowcase.m.less';
 import SourceGrid from './SourceGrid';
 import Scrollable from 'components-react/shared/Scrollable';
-import pick from 'lodash/pick';
 import * as remote from '@electron/remote';
 
 const { Content, Sider } = Layout;
@@ -31,8 +30,6 @@ export default function SourcesShowcase() {
 
 function SourcesShowcaseModal() {
   const { selectInspectedSource, availableAppSources, store } = useSourceShowcaseSettings();
-
-  const inspectedSource = store.useState(s => s.inspectedSource);
 
   const [activeTab, setActiveTab] = useState('all');
 
