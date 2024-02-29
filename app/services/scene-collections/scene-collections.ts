@@ -131,14 +131,6 @@ export class SceneCollectionsService extends Service implements ISceneCollection
           latestModified = collection.modified;
           latestId = collection.id;
         }
-
-        /**
-         * before dual output, collections did not have the scene node map property
-         * so add it here on load
-         */
-        if (!collection.hasOwnProperty('sceneNodeMaps')) {
-          collection.sceneNodeMaps = {};
-        }
       });
 
       await this.load(latestId);

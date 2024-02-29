@@ -10,6 +10,7 @@ import { getExternalSceneItemModel, SceneItem } from './scene-item';
 import { SceneItemFolder } from './scene-item-folder';
 import Utils from '../../../utils';
 import { ISerializable } from '../../rpc-api';
+import { TDisplayType } from 'services/settings-v2';
 
 /**
  * Serialized representation of a {@link Scene}.
@@ -81,6 +82,18 @@ export class Scene implements ISceneModel, ISerializable {
    */
   getNodeByName(name: string): SceneNode | null {
     const node = this.scene.getNodeByName(name);
+    return node ? this.getNode(node.id) : null;
+  }
+
+  /**
+   * Get dual output node
+   */
+  getNodeByNameAndDisplay(name: string, display: TDisplayType = 'horizontal') {
+    const node = this.scene.getNodes().find(node => {
+      console.log('node?.display ', node?.display);
+      node.name === name && node?.display === display;
+    });
+
     return node ? this.getNode(node.id) : null;
   }
 

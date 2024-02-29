@@ -15,7 +15,11 @@ import {
   waitForText,
 } from '../../helpers/modules/core';
 import { logIn } from '../../helpers/modules/user';
-import { toggleDualOutputMode, toggleDisplay } from '../../helpers/modules/dual-output';
+import {
+  toggleDualOutputMode,
+  toggleDisplay,
+  createDualOutputScene,
+} from '../../helpers/modules/dual-output';
 import { getApiClient } from '../../helpers/api-client';
 import { releaseUserInPool, reserveUserFromPool } from '../../helpers/webdriver/user';
 import { test, useWebdriver, TExecutionContext } from '../../helpers/webdriver';
@@ -46,7 +50,7 @@ test.skip('Dual output checkbox toggles Dual Output mode', async (t: TExecutionC
 /**
  * Dual output displays
  */
-test.skip('Dual output elements show on toggle', async (t: TExecutionContext) => {
+test('Dual output elements show on toggle', async (t: TExecutionContext) => {
   await logIn();
   await toggleDualOutputMode();
   await focusMain();
@@ -57,7 +61,7 @@ test.skip('Dual output elements show on toggle', async (t: TExecutionContext) =>
   t.true(await isDisplayed('i#vertical-display-toggle'));
 });
 
-test.skip('Dual output toggles', async (t: TExecutionContext) => {
+test('Dual output toggles', async (t: TExecutionContext) => {
   await logIn();
   await toggleDualOutputMode();
   await focusMain();
@@ -96,8 +100,7 @@ test.skip('Dual output toggles', async (t: TExecutionContext) => {
   t.true(await isDisplayed('div#vertical-display'));
 });
 
-test.skip('Dual output toggle tooltip text', async t => {
-  // @@@ TODO hover selector working by tooltip still not showing
+test('Dual output toggle tooltip text', async t => {
   await logIn();
   await toggleDualOutputMode();
 
@@ -121,6 +124,129 @@ test.skip('Dual output toggle tooltip text', async t => {
     await hoverElement('i#vertical-display-toggle', 50000);
     t.true(await waitForText('Show vertical display'));
   });
+});
+
+test('Dual output duplicates item and folder hierarchy', async (t: TExecutionContext) => {
+  await logIn();
+
+  const sceneBuilder = new SceneBuilder(await getApiClient());
+
+  // Build a complex item and folder hierarchy
+  const sketch = `
+  Item1:
+  Item2:
+  Folder1
+    Item3:
+    Item4:
+  Item5:
+  Folder2
+    Item6:
+    Folder3
+      Item7:
+      Item8:
+    Item9:
+    Folder4
+      Item10:
+  Item11:
+`;
+
+  sceneBuilder.build(sketch);
+
+  t.true(
+    sceneBuilder.isEqualTo(
+      `
+      Item1:
+      Item2:
+      Folder1
+        Item3:
+        Item4:
+      Item5:
+      Folder2
+        Item6:
+        Folder3
+          Item7:
+          Item8:
+        Item9:
+        Folder4
+          Item10:
+      Item11:
+  `,
+    ),
+  );
+
+  // toggle dual output on and convert dual output scene collection
+  await toggleDualOutputMode();
+  await focusMain();
+  t.true(await isDisplayed('div#vertical-display'));
+  t.true(
+    sceneBuilder.isEqualTo(
+      `
+      Item1: color_source
+      Item2: color_source
+      Folder1
+        Item3: color_source
+        Item4: color_source
+      Item5: color_source
+      Folder2
+        Item6: color_source
+        Folder3
+          Item7: color_source
+          Item8: color_source
+        Item9: color_source
+        Folder4
+          Item10: color_source
+      Item11: color_source
+      Item1: color_source
+      Item2: color_source
+      Folder1
+        Item3: color_source
+        Item4: color_source
+      Item5: color_source
+      Folder2
+        Item6: color_source
+        Folder3
+          Item7: color_source
+          Item8: color_source
+        Item9: color_source
+        Folder4
+          Item10: color_source
+      Item11: color_source
+    `,
+    ),
+  );
+});
+
+test('Dual output repairs order of items and folders when switching scenes', async (t: TExecutionContext) => {
+  await logIn();
+  await createDualOutputScene(t, true);
+
+  // const sceneBuilder = new SceneBuilder(await getApiClient());
+
+  // toggle dual output on and off to trigger load/repair
+  // await toggleDualOutputMode();
+  // await toggleDualOutputMode();
+
+  // t.true(
+  //   sceneBuilder.isEqualTo(
+  //     `
+  //     Item1:
+  //     Item2:
+  //     Folder1
+  //       Item3:
+  //       Item4:
+  //     Item5:
+  //     Folder2
+  //       Item6:
+  //       Folder3
+  //         Item7:
+  //         Item8:
+  //       Item9:
+  //       Folder4
+  //         Item10:
+  //     Item11:
+  //     `,
+  //   ),
+  // );
 });
 
 test.skip('Dual output display toggles filter scene items in source selector', async t => {

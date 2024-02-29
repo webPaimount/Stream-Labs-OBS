@@ -10,6 +10,7 @@ import { Expensive } from 'services/api/external-api-limits';
 interface ISceneCollectionsManifestEntry {
   id: string;
   name: string;
+  sceneNodeMaps?: { [sceneId: string]: Dictionary<string> };
 }
 
 /**
@@ -64,6 +65,7 @@ export class SceneCollectionsService {
     return {
       id: collection.id,
       name: collection.name,
+      sceneNodeMaps: collection?.sceneNodeMaps,
     };
   }
 

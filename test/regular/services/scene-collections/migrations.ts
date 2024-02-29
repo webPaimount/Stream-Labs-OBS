@@ -25,6 +25,8 @@ useWebdriver({
     const sceneCollectionsPath = path.join(t.context.cacheDir, 'slobs-client', 'SceneCollections');
     fs.mkdirSync(sceneCollectionsPath);
 
+    // console.log('path join ', path.join(dataDir, 'vanilla-collection.json'));
+
     await copyFile(
       path.join(dataDir, 'scene-collection.json'),
       path.join(sceneCollectionsPath, '4e467470-923c-43a3-90d2-2be39c8c34ee.json'),

@@ -4,7 +4,15 @@ import { Subject } from 'rxjs';
 import { mutation, StatefulService } from 'services/core/stateful-service';
 import { TransitionsService } from 'services/transitions';
 import { WindowsService } from 'services/windows';
-import { Scene, SceneItem, TSceneNode, EScaleType, EBlendingMode, EBlendingMethod } from './index';
+import {
+  Scene,
+  SceneItem,
+  TSceneNode,
+  EScaleType,
+  EBlendingMode,
+  EBlendingMethod,
+  SceneItemNode,
+} from './index';
 import { ISource, SourcesService, ISourceAddOptions, TSourceType } from 'services/sources';
 import { Inject } from 'services/core/injector';
 import { IVideo, SceneFactory } from '../../../obs-api';
@@ -165,6 +173,7 @@ export interface ISceneItemNode {
 export interface ISceneItemFolder extends ISceneItemNode {
   name: string;
   sceneNodeType: 'folder';
+  display?: TDisplayType;
 }
 
 class ScenesViews extends ViewHandler<IScenesState> {
@@ -210,10 +219,10 @@ class ScenesViews extends ViewHandler<IScenesState> {
     return null;
   }
 
-  getSceneItemsBySceneId(sceneId: string): SceneItem[] | undefined {
+  getSceneNodesBySceneId(sceneId: string): TSceneNode[] | undefined {
     const scene: Scene | null = this.getScene(sceneId);
     if (!scene) return;
-    return scene.getItems();
+    return scene.getNodes();
   }
 
   /**
@@ -329,6 +338,7 @@ export class ScenesService extends StatefulService<IScenesState> {
       const oldScene = this.views.getScene(options.duplicateSourcesFromScene);
       if (!oldScene) return;
 
+      console.log('duplciating sources');
       oldScene
         .getItems()
         .slice()

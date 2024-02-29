@@ -6,7 +6,7 @@ import { NodeMapNode } from './node-map';
 interface ISchema {
   scenes: ScenesNode;
   transition?: TransitionNode;
-  nodeMap: NodeMapNode;
+  nodeMap?: NodeMapNode;
 }
 
 interface IContext {

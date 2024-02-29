@@ -14,6 +14,7 @@ export class NodeMapNode extends Node<ISceneNodeMapSchema, {}> {
   async save() {
     const activeCollection = this.sceneCollectionsService.activeCollection;
     if (activeCollection?.sceneNodeMaps) {
+      // console.log('savind node map');
       this.data = {
         sceneNodeMaps: this.sceneCollectionsService?.sceneNodeMaps,
       };
@@ -22,6 +23,7 @@ export class NodeMapNode extends Node<ISceneNodeMapSchema, {}> {
 
   async load() {
     if (this.data?.sceneNodeMaps) {
+      // console.log('overlay has scene nodemap');
       this.sceneCollectionsService.initNodeMaps(this.data.sceneNodeMaps);
     }
   }

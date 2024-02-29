@@ -7,6 +7,7 @@ import {
   SceneNode,
 } from '../../app/services/api/external-api/scenes';
 import { TSourceType } from '../../app/services/sources';
+import { TDisplayType } from 'services/settings-v2';
 
 interface ISceneBuilderNode {
   name: string;
@@ -14,6 +15,7 @@ interface ISceneBuilderNode {
   sourceType?: TSourceType;
   id?: string;
   children?: ISceneBuilderNode[];
+  display?: TDisplayType;
 }
 
 /**
@@ -161,6 +163,7 @@ export class SceneBuilder {
           id: sceneNode.id,
           type: 'folder' as TSceneNodeType,
           children: this.getSceneSchema(sceneNode.id),
+          display: sceneNode?.display,
         };
       }
       if (sceneNode.isItem()) {
@@ -168,9 +171,8 @@ export class SceneBuilder {
           name: sceneNode.name,
           id: sceneNode.id,
           type: 'item' as TSceneNodeType,
-          sourceType: (
-            sceneNode as SceneItem
-          ).getSource().type,
+          sourceType: (sceneNode as SceneItem).getSource().type,
+          display: sceneNode?.display,
         };
       }
     });
@@ -213,9 +215,7 @@ export class SceneBuilder {
         sceneNode = this.scene.createAndAddSource(node.name, node.sourceType);
 
         if (node.sourceType === 'color_source') {
-          this.scene.getItem(sceneNode.id)
-            .getSource()
-            .updateSettings({ width: 400, height: 400 });
+          this.scene.getItem(sceneNode.id).getSource().updateSettings({ width: 400, height: 400 });
         }
       } else {
         sceneNode = this.scene.createFolder(node.name);

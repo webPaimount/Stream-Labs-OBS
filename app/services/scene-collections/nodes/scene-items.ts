@@ -142,6 +142,7 @@ export class SceneItemsNode extends Node<ISchema, {}> {
     // on first load, a dual output scene needs to assign displays and contexts to the scene items
     // but if the scene item already has a display assigned, skip it
     if (this.dualOutputService.views.hasNodeMap(context.scene.id)) {
+      console.log('loading scene items has node map');
       // nodes must be assigned to a context, so if it doesn't exist, establish it
       if (!this.videoSettingsService.contexts.vertical) {
         this.videoSettingsService.establishVideoContext('vertical');
@@ -162,6 +163,8 @@ export class SceneItemsNode extends Node<ISchema, {}> {
         }
       });
     } else {
+      console.log('loading scene items no node map');
+
       // for vanilla scenes, assign all items to the horizontal display
       this.data.items.forEach(item => {
         if (!item?.display) {

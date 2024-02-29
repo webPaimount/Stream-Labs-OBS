@@ -222,10 +222,13 @@ export function useWebdriver(options: ITestRunnerOptions = {}) {
     reuseCache = false,
   ): Promise<Application> {
     if (!reuseCache) {
-      lastCacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'slobs-test'));
+      const cachePath = path.join(os.tmpdir(), 'slobs-test');
+      if (cachePath !== t.context.cacheDir) {
+        lastCacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'slobs-test'));
+        t.context.cacheDir = lastCacheDir;
+      }
     }
 
-    t.context.cacheDir = lastCacheDir;
     const appArgs = options.appArgs ? options.appArgs.split(' ') : [];
     if (options.networkLogging) appArgs.push('--network-logging');
     if (options.noSync) appArgs.push('--nosync');
