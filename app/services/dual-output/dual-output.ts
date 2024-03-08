@@ -317,21 +317,16 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     this.scenesService.sceneSwitched.subscribe((scene: IScene) => {
       // if a scene collection is added in dual output mode, automatically add the
       // scene collection as a dual output scene collection
-      console.log('this.views.isDualOutputCollection ', this.views.isDualOutputCollection);
       if (!this.views.isDualOutputCollection) {
-        // console.log('vanilla collection when switched');
         if (this.state.dualOutputMode) {
-          // console.log('creating, dual output mode');
           this.createSceneNodes(scene.id);
           return;
         } else {
           // if we're not in dual output mode and there is no scene node map
           // it is a vanilla scene collection, so there is no need to confirm the nodes
-          // console.log('returning');
           return;
         }
       } else {
-        // console.log('dual output collection when switcghe');
         // if there is no scene node map, this is a scene in a dual output scene collection
         // that has not yet been converted to a dual output scene
         // so create a node map for the scene if one does not already exist
@@ -347,6 +342,10 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
           // this.confirmSceneNodeOrder();
           // this.confirmSceneSources();
         }
+      }
+
+      if (this.state.isLoading) {
+        this.setIsLoading(false);
       }
     });
 
@@ -423,11 +422,11 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
    * @param sceneId - Id of the scene to map
    */
   confirmOrAssignSceneNodes(sceneId: string) {
-    this.SET_IS_LOADING(true);
     const sceneNodes = this.scenesService.views.getSceneNodesBySceneId(sceneId);
     if (!sceneNodes) return;
 
     const verticalNodeIds = new Set(this.views.getVerticalNodeIds(sceneId));
+    const sceneNodeIds = sceneNodes.map(sceneNode => sceneNode.id);
 
     // establish vertical context if it doesn't exist
     if (
@@ -437,20 +436,45 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
       this.videoSettingsService.establishVideoContext('vertical');
     }
 
-    sceneNodes.forEach((sceneItem: TSceneNode, index: number) => {
-      // Item already has a context assigned
-      // Folders do not have contexts assigned
-      if (sceneItem.isFolder() || sceneItem?.output) return;
+    sceneNodes.forEach((sceneNode: TSceneNode) => {
+      // confirm all vertical scene nodes exist
+      if (
+        sceneNode?.display === 'horizontal' &&
+        this.views.activeSceneNodeMap &&
+        (!this.views.activeSceneNodeMap[sceneNode.id] ||
+          !sceneNodeIds.includes(this.views.activeSceneNodeMap[sceneNode.id]))
+      ) {
+        // if it's not the first display, copy the scene item
+        const scene = this.scenesService.views.getScene(sceneId ?? this.views.activeSceneId);
 
-      const display = verticalNodeIds?.has(sceneItem.id) ? 'vertical' : 'horizontal';
-      this.assignNodeContext(sceneItem, sceneItem?.display ?? display);
-      this.sceneNodeHandled.next(index);
+        let newNode = {} as TSceneNode;
+        if (sceneNode.isItem()) {
+          newNode = scene.addSource(sceneNode.sourceId, {
+            display: 'vertical',
+          });
+        } else {
+          newNode = scene.createFolder(sceneNode.name, { display: 'vertical' });
+        }
+
+        // create node map entry if it doesn't exist
+        if (!this.views.activeSceneNodeMap[sceneNode.id]) {
+          this.sceneCollectionsService.createNodeMapEntry(sceneId, sceneNode.id, newNode.id);
+        }
+
+        // reorder scene node
+        const selection = scene.getSelection(newNode.id);
+        selection.placeBefore(sceneNode.id);
+      }
+
+      // Item already has a context assigned
+      if (sceneNode?.output) return;
+
+      const display = verticalNodeIds?.has(sceneNode.id) ? 'vertical' : 'horizontal';
+      this.assignNodeContext(sceneNode, sceneNode?.display ?? display);
     });
-    this.SET_IS_LOADING(false);
   }
 
   createSceneNodes(sceneId: string) {
-    this.SET_IS_LOADING(true);
     // establish vertical context if it doesn't exist
     if (this.state.dualOutputMode && !this.videoSettingsService.contexts.vertical) {
       this.videoSettingsService.establishVideoContext('vertical');
@@ -470,7 +494,6 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
 
     const order = compact(scene.getNodesIds().map(origNodeId => nodeIdsMap[origNodeId]));
     scene.setNodesOrder(order.concat(initialNodeOrder));
-    this.SET_IS_LOADING(false);
   }
 
   // createSceneNodes(sceneId: string) {
@@ -634,8 +657,6 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
       }
 
       folder.placeBefore(verticalNode.id);
-
-      return folder.id;
     } else {
       // add item
       const item = scene.addSource(verticalNode.sourceId, {
@@ -654,8 +675,6 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
       item.setLocked(verticalNode.locked);
 
       this.sceneCollectionsService.createNodeMapEntry(scene.id, item.id, verticalNode.id);
-
-      return item.id;
     }
   }
 
@@ -672,7 +691,6 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     if (horizontalNode.isFolder()) {
       // add folder and create node map entry
       const folder = scene.createFolder(horizontalNode.name, { display: 'vertical' });
-      this.setNodeMapEntry(scene, horizontalNode.id, folder.id, isSceneSourceNode);
 
       // make sure node is correctly nested
       if (horizontalNode.parentId) {
@@ -681,6 +699,10 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
         folder.setParent(verticalNodeParentId);
       } else {
         folder.placeAfter(horizontalNode.id);
+      }
+
+      if (!isSceneSourceNode) {
+        this.sceneCollectionsService.createNodeMapEntry(scene.id, horizontalNode.id, folder.id);
       }
 
       return folder.id;
@@ -712,13 +734,16 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
 
         // match locked
         item.setLocked(horizontalNode.locked);
+      }
+      // make sure node is correctly nested
+      if (horizontalNode.parentId) {
+        const verticalNodeParentId = this.views.activeSceneNodeMap[horizontalNode.parentId];
+        if (!verticalNodeParentId) return;
+        item.setParent(verticalNodeParentId);
+      }
 
-        // make sure node is correctly nested
-        if (horizontalNode.parentId) {
-          const verticalNodeParentId = this.views.activeSceneNodeMap[horizontalNode.parentId];
-          if (!verticalNodeParentId) return;
-          item.setParent(verticalNodeParentId);
-        }
+      if (!isSceneSourceNode) {
+        this.sceneCollectionsService.createNodeMapEntry(scene.id, horizontalNode.id, item.id);
       }
 
       return item.id;
@@ -730,7 +755,6 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
    * @remark Primarily used when switching scenes
    */
   confirmSceneNodeMaps() {
-    this.SET_IS_LOADING(true);
     // establish vertical context if it doesn't exist
     if (!this.videoSettingsService.contexts.vertical) {
       this.videoSettingsService.establishVideoContext('vertical');
@@ -745,11 +769,6 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
       const sceneNodes = this.scenesService.views.getSceneNodesBySceneId(sceneId);
       if (!sceneNodes) return;
 
-      // track node order to confirm order of nodes in the scene matches the expected order
-      // after the node map has been confirmed
-      const horizontalNodeOrder: string[] = [];
-      const verticalNodeOrder: string[] = [];
-
       // the keys in the nodemap are the ids for the horizontal nodes
       const keys = Object.keys(nodeMap);
       const horizontalNodeIds = new Set(keys);
@@ -757,18 +776,22 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
       const values = Object.values(nodeMap);
       const verticalNodeIds = new Set(values);
 
-      // confirm node map
       sceneNodes.forEach((sceneNode: TSceneNode, index: number) => {
         if (sceneNode?.display === 'horizontal') {
-          horizontalNodeOrder.push(sceneNode.id);
-
-          let verticalNodeId = nodeMap[sceneNode.id];
+          const verticalNodeId = nodeMap[sceneNode.id];
 
           // confirm horizontal node has a partner vertical node
           if (!verticalNodeId) {
             // create vertical node and node map entry
-            verticalNodeId = this.createVerticalNode(sceneNode);
-            verticalNodeOrder.push(verticalNodeId);
+            this.createVerticalNode(sceneNode);
+          }
+
+          // confirm vertical node is placed after the horizontal node
+          if (index < sceneNodes.length - 1 && sceneNodes[index + 1].id !== verticalNodeId) {
+            const verticalNode = this.scenesService.views.getSceneNode(verticalNodeId);
+            if (verticalNode) {
+              verticalNode.placeAfter(sceneNode.id);
+            }
           }
 
           // remove from keys because we have confirmed this entry
@@ -778,14 +801,10 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
           if (sceneNode?.output) return;
           this.assignNodeContext(sceneNode, 'horizontal');
         } else if (sceneNode?.display === 'vertical') {
-          verticalNodeOrder.push(sceneNode?.id);
-
           // confirm horizontal node
           if (!verticalNodeIds.has(sceneNode.id)) {
             // create horizontal node and node map entry
-            const horizontalNodeId = this.createHorizontalNode(sceneNode);
-            // track order of horizontal nodes in scene
-            horizontalNodeOrder.push(horizontalNodeId);
+            this.createHorizontalNode(sceneNode);
           }
 
           // confirm scene item has output, or assign one
@@ -793,13 +812,8 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
           this.assignNodeContext(sceneNode, 'vertical');
         } else {
           // otherwise assign it to the horizontal display and create a vertical node
-          const horizontalNodeId = sceneNode?.id;
           this.assignNodeContext(sceneNode, 'horizontal');
-          const verticalNodeId = this.createVerticalNode(sceneNode);
-
-          // track order of nodes
-          horizontalNodeOrder.push(horizontalNodeId);
-          verticalNodeOrder.push(verticalNodeId);
+          this.createVerticalNode(sceneNode);
         }
         this.sceneNodeHandled.next(index);
       });
@@ -811,35 +825,9 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
         this.sceneCollectionsService.removeNodeMapEntry(horizontalId, sceneId);
       });
 
-      // @@@ TODO
       // ensure that any source that is a scene has vertical nodes created
       // so that the scene source will correctly render in the vertical display
-      // this.convertSceneSources(sceneId);
-    }
-
-    this.SET_IS_LOADING(false);
-  }
-
-  /**
-   * Set entry in node map
-   * @remark Distinguish between nodes created to render scene sources in the vertical display
-   * and nodes created for the vertical display for the editor
-   * @param scene - Scene, the scene for the entry
-   * @param horizontalNodeId - string, the horizontal node id, to be used as a key
-   * @param verticalNodeId - string, the vertical node id, to be used as a value
-   * @param isSceneSourceNode - boolean, distinguish between nodes created for the vertical editor display
-   * and nodes created to render a scene source in the vertical display
-   */
-  setNodeMapEntry(
-    scene: Scene,
-    horizontalNodeId: string,
-    verticalNodeId: string,
-    isSceneSourceNode: boolean = false,
-  ) {
-    if (isSceneSourceNode) {
-      // scene.setSceneSourceNodeMapEntry(horizontalNodeId, verticalNodeId);
-    } else {
-      this.sceneCollectionsService.createNodeMapEntry(scene.id, horizontalNodeId, verticalNodeId);
+      this.convertSceneSources(sceneId);
     }
   }
 
@@ -897,15 +885,10 @@ export class DualOutputService extends PersistentStatefulService<IDualOutputServ
     this.UPDATE_VIDEO_SETTING(settings, display);
   }
 
-  setIsLoading(status: boolean) {
-    this.SET_IS_LOADING(status);
-  }
-
   /**
    * Update loading state to show loading animation
    */
-
-  setIsCollectionOrSceneLoading(status: boolean) {
+  setIsLoading(status: boolean) {
     this.SET_IS_LOADING(status);
   }
 
