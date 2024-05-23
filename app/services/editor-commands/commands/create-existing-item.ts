@@ -26,7 +26,7 @@ export class CreateExistingItemCommand extends Command {
 
   private sceneItemId: string;
 
-  private dualOutputVerticalNodeId: string;
+  private dualOutputVerticalSceneItemId: string;
 
   description: string;
 
@@ -42,40 +42,66 @@ export class CreateExistingItemCommand extends Command {
       .getScene(this.sceneId)
       .addSource(this.sourceId, { id: this.sceneItemId, display: 'horizontal' });
 
+    this.sceneItemId = item.id;
+
     // check the existence of all scene node maps because the scene may not have a
     // node map created for it
     if (this.dualOutputService.views.hasSceneNodeMaps) {
-      if (this.dualOutputVerticalNodeId) {
-        Promise.resolve(
-          this.dualOutputService.actions.return.createOrAssignOutputNode(
-            item,
-            'vertical',
-            false,
-            this.sceneId,
-            this.dualOutputVerticalNodeId,
-          ),
-        );
+      if (item.type === 'scene') {
+        this.dualOutputVerticalSceneItemId = this.scenesService.createDualOutputSceneSourceSceneItem(
+          this.sceneId,
+          this.sourceId,
+          this.sceneItemId,
+          this.dualOutputVerticalSceneItemId,
+        )?.id;
       } else {
-        Promise.resolve(
-          this.dualOutputService.actions.return.createOrAssignOutputNode(
-            item,
-            'vertical',
-            false,
-            this.sceneId,
-          ),
-        ).then(node => (this.dualOutputVerticalNodeId = node.id));
+        if (this.dualOutputVerticalSceneItemId) {
+          Promise.resolve(
+            this.dualOutputService.actions.return.createOrAssignOutputNode(
+              item,
+              'vertical',
+              false,
+              this.sceneId,
+              this.dualOutputVerticalSceneItemId,
+            ),
+          );
+        } else {
+          Promise.resolve(
+            this.dualOutputService.actions.return.createOrAssignOutputNode(
+              item,
+              'vertical',
+              false,
+              this.sceneId,
+            ),
+          ).then(node => (this.dualOutputVerticalSceneItemId = node.id));
+        }
       }
     }
-
-    this.sceneItemId = item.id;
   }
 
   rollback() {
-    this.scenesService.views.getScene(this.sceneId).removeItem(this.sceneItemId);
+    // rollback vertical scene item first in case the scene is a source for a
+    // scene-as-scene-item
+    if (this.dualOutputVerticalSceneItemId) {
+      const dualOutputSceneItem = this.scenesService.views
+        .getScene(this.sceneId)
+        .getItem(this.dualOutputVerticalSceneItemId);
 
-    if (this.dualOutputVerticalNodeId) {
-      this.scenesService.views.getScene(this.sceneId).removeItem(this.dualOutputVerticalNodeId);
+      // remove vertical scene item from scene
+      this.scenesService.views
+        .getScene(this.sceneId)
+        .removeItem(this.dualOutputVerticalSceneItemId);
+
+      // if the type is a scene, this is a vertical scene-as-scene-item
+      // so also remove the vertical-scene-source
+      if (dualOutputSceneItem.type === 'scene') {
+        this.scenesService.removeScene(dualOutputSceneItem.sourceId);
+        this.sceneCollectionsService.removeNodeMap(dualOutputSceneItem.sourceId);
+      }
+
       this.sceneCollectionsService.removeNodeMapEntry(this.sceneId, this.sceneItemId);
     }
+
+    this.scenesService.views.getScene(this.sceneId).removeItem(this.sceneItemId);
   }
 }

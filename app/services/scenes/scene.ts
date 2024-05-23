@@ -13,6 +13,7 @@ import {
   EScaleType,
   EBlendingMode,
   EBlendingMethod,
+  TSceneType,
 } from './index';
 import Utils from 'services/utils';
 import * as obs from '../../../obs-api';
@@ -38,6 +39,9 @@ export class Scene {
   id: string;
   name: string;
   nodes: (ISceneItem | ISceneItemFolder)[];
+  nodeMap?: Dictionary<string>;
+  sceneType?: TSceneType;
+  dualOutputSceneSourceId?: string;
   resourceId: string;
 
   private _resourceId: string;
@@ -114,6 +118,16 @@ export class Scene {
       .map(item => this.getItem(item.id)!);
   }
 
+  getItemsByDisplay(display: TDisplayType) {
+    return this.state.nodes
+      .filter(node => node.sceneNodeType === 'item' && node?.display === display)
+      .map(item => this.getItem(item.id)!);
+  }
+
+  getItemsIds(): string[] {
+    return this.state.nodes.filter(node => node.sceneNodeType === 'item').map(item => item.id);
+  }
+
   getFolders(): SceneItemFolder[] {
     return this.state.nodes
       .filter(node => node.sceneNodeType === 'folder')
@@ -136,6 +150,10 @@ export class Scene {
 
   getNodesIds(): string[] {
     return this.state.nodes.map(item => item.id);
+  }
+
+  getNodeMap(): Dictionary<string> | undefined {
+    return this.state?.nodeMap;
   }
 
   /**
@@ -229,9 +247,6 @@ export class Scene {
     if (source.forceHidden) obsSceneItem.visible = false;
 
     const display = options?.display ?? 'horizontal';
-    // assign context to scene item
-    const context =
-      this.videoSettingsService.contexts[display] ?? this.videoSettingsService.contexts.horizontal;
 
     this.ADD_SOURCE_TO_SCENE(
       sceneItemId,
@@ -242,7 +257,10 @@ export class Scene {
     );
     const sceneItem = this.getItem(sceneItemId)!;
 
-    sceneItem.setSettings({ ...sceneItem.getSettings(), display, output: context });
+    // assign context to scene item
+    const context =
+      this.videoSettingsService.contexts[display] ?? this.videoSettingsService.contexts.horizontal;
+    sceneItem.setSettings({ ...sceneItem.getSettings(), output: context, display });
 
     // Default is to select
     if (options.select == null) options.select = true;
@@ -434,6 +452,56 @@ export class Scene {
     this.reconcileNodeOrderWithObs();
   }
 
+  setNodeMap(nodeMap: Dictionary<string>) {
+    this.SET_NODE_MAP(nodeMap);
+  }
+
+  /**
+   * Add scene id for the vertical scene created to render the horizontal
+   * scene source in the vertical display in dual output mode
+   * @remark Because individual scene items are assigned to a single display,
+   * when using a scene as a source, scene items assigned to the vertical display
+   * are required to render the scene.
+   *
+   * A scene source in dual output mode is technically two sources: one for the
+   * horizontal display and one for the vertical display. If we add the same
+   * scene to both sources, it will render the horizontal sources in the horizontal
+   * display and the vertical sources in the vertical display. But the scene source
+   * in dual output mode should have the horizontal scene rendered the same in the
+   * horizontal display and the vertical display. Therefore, we need to create a
+   * new scene for the vertical display that contains a scaled copy of the horizontal sources
+   * but are assigned to the vertical display. This new scene is assigned to the scene item
+   * for the scene source in the vertical display.
+   *
+   * To summarize:
+   *
+   * THE GOAL: render a scene source in both displays that looks like the horizontal display
+   *
+   * THE PROBLEM: assigning the same scene as a source in both displays will render the sources
+   *
+   * assigned to the vertical display, so the scene source will look like the vertical display.
+   * THE SOLUTION: create a new scene that is a copy of the sources assigned to the horizontal
+   * display, assign these copied sources to the vertical display, and transform them to fit within
+   * the dimensions of the vertical display
+   *
+   * FACTORS AT PLAY:
+   * - Scene1 has horizontal and vertical sources.
+   * - Adding a scene source creates 2 scene items: Scene1HorizontalItem and Scene1VerticalItem
+   * - SceneItemHorizontal needs a scene source with sources assigned to the horizontal display.
+   * - SceneItemVertical needs a scene source with sources assigned to the vertical display.
+   * - Adding Scene1 as the source for Scene1HorizontalItem will render the sources assigned
+   *   to the horizontal display in Scene 1.
+   * - Adding Scene1 as the source for Scene1HorizontalItem will render the sources assigned
+   *   to the vertical display in Scene 1.
+   * - Sources cannot be assigned to multiple displays. A source is assigned to a single display.
+   *
+   * @param sceneId - the id of the vertical scene source created to render this scene's horizontal
+   * sources in the vertical display in a scene source
+   */
+  setDualOutputSceneSourceId(verticalSceneId: string) {
+    this.SET_DUAL_OUTPUT_SCENE_SOURCE_ID(verticalSceneId);
+  }
+
   /**
    * Makes sure all scene items are in the correct order in OBS.
    */
@@ -500,7 +568,12 @@ export class Scene {
     let itemIndex = 0;
     nodes.forEach(nodeModel => {
       const display = nodeModel?.display ?? 'horizontal';
+      if (display === 'vertical' && !this.videoSettingsService.contexts.vertical) {
+        this.videoSettingsService.establishVideoContext('vertical');
+      }
+
       const obsSceneItem = obsSceneItems[itemIndex];
+
       if (nodeModel.sceneNodeType === 'folder') {
         this.createFolder(nodeModel.name, { id: nodeModel.id, display });
       } else {
@@ -511,6 +584,12 @@ export class Scene {
           display,
           obsSceneItem.position,
         );
+
+        const context = this.videoSettingsService.contexts[display];
+        obsSceneItem.video = context as obs.IVideo;
+
+        nodeModel.position = obsSceneItem.position;
+
         const item = this.getItem(nodeModel.id)!;
         item.loadItemAttributes(nodeModel);
         itemIndex++;
@@ -697,5 +776,15 @@ export class Scene {
     const childNodeState = this.state.nodes.find(node => node.id === childNodeId);
     assertIsDefined(childNodeState);
     childNodeState.parentId = parentFolderId;
+  }
+
+  @mutation()
+  private SET_NODE_MAP(nodeMap: Dictionary<string>) {
+    this.state.nodeMap = nodeMap;
+  }
+
+  @mutation()
+  private SET_DUAL_OUTPUT_SCENE_SOURCE_ID(verticalSceneId: string) {
+    this.state.dualOutputSceneSourceId = verticalSceneId;
   }
 }
