@@ -32,15 +32,16 @@ export default function GameSelector(p: TProps) {
   }
 
   const { isSearching, setIsSearching, games, setGames } = useModule(() => {
-    const selectedGameOptions = isTikTok
-      ? [
-          { label: selectedGameName, value: selectedGameId },
-          {
-            label: Services.TikTokService.defaultGame.name,
-            value: Services.TikTokService.defaultGame.id,
-          },
-        ]
-      : [{ label: selectedGameName, value: selectedGameId }];
+    const selectedGameOptions =
+      isTikTok && selectedGameId.toLowerCase() !== Services.TikTokService.defaultGame.id
+        ? [
+            { label: selectedGameName, value: selectedGameId },
+            {
+              label: Services.TikTokService.defaultGame.name,
+              value: Services.TikTokService.defaultGame.id,
+            },
+          ]
+        : [{ label: selectedGameName, value: selectedGameId }];
 
     return {
       state: injectState({
