@@ -450,8 +450,8 @@ export class TikTokService
    * show live approval status.
    */
   async searchGames(searchString: string): Promise<IGame[]> {
-    if (searchString.toLowerCase() === 'other') {
-      return Promise.resolve([this.defaultGame]);
+    if (searchString.toLowerCase() === 'other' && this.state.gameName === 'Other') {
+      return Promise.resolve([]);
     }
 
     const host = this.hostsService.streamlabs;
