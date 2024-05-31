@@ -450,7 +450,7 @@ export class TikTokService
    * show live approval status.
    */
   async searchGames(searchString: string): Promise<IGame[]> {
-    if (searchString.toLowerCase() === 'other' && this.state.gameName === 'Other') {
+    if (this.state.gameName === 'Other') {
       return Promise.resolve([]);
     }
 
